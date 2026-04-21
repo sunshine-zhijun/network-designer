@@ -370,7 +370,10 @@ Response ApiRouter::handleGetFloor(const std::string& id) {
 
 Response ApiRouter::handleCreateFloor(const Request& req) {
     auto data = parseJsonBody(req.body);
-    data["id"] = generateUUID();
+    // 使用前端传入的 id（格式如 floor-时间戳），不重新生成
+    if (!data.count("id") || data["id"].empty()) {
+        data["id"] = generateUUID();
+    }
     
     auto result = db_.createFloor(data);
     if (!result.success) return jsonError(500, result.error);
