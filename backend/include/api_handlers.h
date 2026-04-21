@@ -75,7 +75,7 @@ public:
     
     Response handle(const Request& req);
 
-privat:
+private:
     void initRoutes();
     
     // 健康检查

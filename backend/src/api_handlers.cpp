@@ -406,9 +406,9 @@ Response ApiRouter::handleLoadFloor(const std::string& floorId) {
     
     // 获取该楼层的数据
     auto fp = db_.query("SELECT * FROM floorplans WHERE floor_id = '" + projectId + "' OR project_id = '" + projectId + "'");
-    auto walls = db_.query("SELECT * FROM walls WHERE floor_id = '" + escapeString(floorId) + "'");
-    auto devices = db_.query("SELECT * FROM devices WHERE floor_id = '" + escapeString(floorId) + "'");
-    auto links = db_.query("SELECT * FROM links WHERE floor_id = '" + escapeString(floorId) + "'");
+    auto walls = db_.query("SELECT * FROM walls WHERE floor_id = '" + db_.escapeString(floorId) + "'");
+    auto devices = db_.query("SELECT * FROM devices WHERE floor_id = '" + db_.escapeString(floorId) + "'");
+    auto links = db_.query("SELECT * FROM links WHERE floor_id = '" + db_.escapeString(floorId) + "'");
     auto scale = db_.getScale(projectId);
     
     std::ostringstream ss;
