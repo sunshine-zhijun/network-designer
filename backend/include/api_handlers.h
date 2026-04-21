@@ -124,5 +124,6 @@ private:
 
 // JSON转换辅助
 std::string rowsToJson(const std::vector<std::map<std::string, std::string>>& rows);
+std::string mapToJson(const std::map<std::string, std::string>& data);
 
 #endif // API_HANDLERS_H
