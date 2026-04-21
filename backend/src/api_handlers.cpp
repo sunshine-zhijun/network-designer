@@ -209,6 +209,25 @@ Response ApiRouter::handle(const Request& req) {
         return handleDeleteProject(id);
     }
     
+    // 户型图路由（必须放在 floors 前，因为 floorplans 前缀包含 /api/floors/）
+    if (path == "/api/floorplans" && req.method == "POST") {
+        return handleCreateFloorplan(req);
+    }
+    if (path == "/api/floorplans" && req.method == "GET" && req.queryParams.count("floor_id")) {
+        return handleGetFloorplansByFloor(req.queryParams.at("floor_id"));
+    }
+    if (path == "/api/floorplans" && req.method == "GET" && req.queryParams.count("project_id")) {
+        return handleGetFloorplans(req.queryParams.at("project_id"));
+    }
+    if (path.substr(0, 16) == "/api/floorplans/" && req.method == "PUT") {
+        std::string id = extractPathParam(path, "/api/floorplans/*");
+        return handleUpdateFloorplan(id, req);
+    }
+    if (path.substr(0, 16) == "/api/floorplans/" && req.method == "DELETE") {
+        std::string id = extractPathParam(path, "/api/floorplans/*");
+        return handleDeleteFloorplan(id);
+    }
+    
     // 楼层路由
     if (path == "/api/floors" && req.method == "POST") {
         return handleCreateFloor(req);
@@ -230,25 +249,6 @@ Response ApiRouter::handle(const Request& req) {
     }
     if (path == "/api/floors" && req.method == "GET" && req.queryParams.count("project_id")) {
         return handleGetFloors(req.queryParams.at("project_id"));
-    }
-    
-    // 户型图路由
-    if (path == "/api/floorplans" && req.method == "POST") {
-        return handleCreateFloorplan(req);
-    }
-    if (path == "/api/floorplans" && req.method == "GET" && req.queryParams.count("floor_id")) {
-        return handleGetFloorplansByFloor(req.queryParams.at("floor_id"));
-    }
-    if (path == "/api/floorplans" && req.method == "GET" && req.queryParams.count("project_id")) {
-        return handleGetFloorplans(req.queryParams.at("project_id"));
-    }
-    if (path.substr(0, 16) == "/api/floorplans/" && req.method == "PUT") {
-        std::string id = extractPathParam(path, "/api/floorplans/*");
-        return handleUpdateFloorplan(id, req);
-    }
-    if (path.substr(0, 16) == "/api/floorplans/" && req.method == "DELETE") {
-        std::string id = extractPathParam(path, "/api/floorplans/*");
-        return handleDeleteFloorplan(id);
     }
     
     // 墙体路由
