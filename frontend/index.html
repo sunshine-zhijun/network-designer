@@ -92,17 +92,6 @@
       <button class="tool-btn" id="btn-link" data-tool="link" title="绘制网线连接 (L)">
         <i>🔗</i> 布线
       </button>
-
-      <!-- 选择 -->
-      <button class="tool-btn" id="tool-select" data-tool="select" title="选择/移动 (V)">
-        <i>↖️</i> 选择
-      </button>
-
-      <!-- 撤回/复原按钮组 -->
-      <div class="toolbar-group undo-redo-group">
-        <button class="btn" id="btn-undo" title="撤回上一步 (Ctrl+Z)">↩️ 撤回</button>
-        <button class="btn" id="btn-redo" title="还原下一步 (Ctrl+Y)">↪️ 复原</button>
-      </div>
     </div>
 
     <!-- 区域3: 视图控制 -->
@@ -136,26 +125,41 @@
         </div>
       </div>
 
-      <!-- 热力图开关 -->
-      <button class="btn" id="btn-heatmap" title="显示/隐藏热力图">
-        <i>🌡️</i> 热力图
-      </button>
-      <select id="heatmap-freq-select" class="freq-select">
-        <option value="all">全部频段</option>
-        <option value="2.4">2.4 GHz</option>
-        <option value="5">5 GHz</option>
-        <option value="6">6 GHz</option>
-      </select>
-
       <!-- 视图缩放 -->
       <div class="toolbar-group">
-        <button class="btn" id="btn-zoom-in">🔍+</button>
-        <button class="btn" id="btn-zoom-out">🔍-</button>
-        <button class="btn" id="btn-zoom-fit">⊡</button>
+        <button class="btn" id="btn-zoom-in" title="放大 (滚轮上/+)">🔍+</button>
+        <button class="btn" id="btn-zoom-out" title="缩小 (滚轮下/-)">🔍-</button>
+        <button class="btn" id="btn-zoom-fit" title="适应窗口">⊡</button>
       </div>
       <div class="zoom-display" id="zoom-display">100%</div>
     </div>
   </header>
+
+  <!-- 右上角热力图面板 -->
+  <div id="heatmap-panel">
+    <div class="heatmap-panel-item">
+      <button class="btn" id="btn-heatmap" title="显示/隐藏热力图">
+        <i>🌡️</i> 热力图
+      </button>
+    </div>
+    <div class="heatmap-panel-item freq-btns">
+      <button class="freq-btn active" data-freq="2.4" title="2.4GHz">2G</button>
+      <button class="freq-btn" data-freq="5" title="5GHz">5G</button>
+      <button class="freq-btn" data-freq="6" title="6GHz">6G</button>
+    </div>
+  </div>
+
+  <!-- 左下角工具栏 -->
+  <div id="view-toolbar">
+    <!-- 选择 -->
+    <button class="tool-btn" id="tool-select" data-tool="select" title="选择/移动 (V)">
+      <i>↖️</i>
+    </button>
+    <div class="view-toolbar-divider"></div>
+    <!-- 撤回/复原 -->
+    <button class="btn btn-icon" id="btn-undo" title="撤回 (Ctrl+Z)">↩️</button>
+    <button class="btn btn-icon" id="btn-redo" title="复原 (Ctrl+Y)">↪️</button>
+  </div>
 
   <!-- 主体区域 -->
   <div id="main-area">

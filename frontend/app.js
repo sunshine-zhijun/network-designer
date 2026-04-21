@@ -424,10 +424,17 @@ function setupToolbar() {
   // 热力图开关
   document.getElementById('btn-heatmap').addEventListener('click', toggleHeatmap);
 
-  // 热力图频段选择
-  document.getElementById('heatmap-freq-select').addEventListener('change', (e) => {
-    State.heatmapFreq = e.target.value === 'all' ? 'all' : parseFloat(e.target.value);
-    if (State.heatmapVisible) requestHeatmap();
+  // 热力图频段按钮
+  document.querySelectorAll('.freq-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      // 更新按钮状态
+      document.querySelectorAll('.freq-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      // 更新状态
+      const freq = btn.dataset.freq;
+      State.heatmapFreq = freq === 'all' ? 'all' : parseFloat(freq);
+      if (State.heatmapVisible) requestHeatmap();
+    });
   });
 
   // 缩放

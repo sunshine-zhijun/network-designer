@@ -1761,3 +1761,155 @@ input:focus, select:focus {
 .guide-tips b {
   color: var(--accent);
 }
+
+/* ===== 右上角热力图面板 ===== */
+#heatmap-panel {
+  position: fixed;
+  top: 60px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 40;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.heatmap-panel-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.freq-btns {
+  display: flex;
+  gap: 2px;
+}
+
+.freq-btn {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-dark);
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.freq-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.freq-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* ===== 左下角工具栏 ===== */
+#view-toolbar {
+  position: fixed;
+  bottom: 44px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 40;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+#view-toolbar .tool-btn,
+#view-toolbar .btn-icon {
+  padding: 6px 8px;
+  min-width: 32px;
+  justify-content: center;
+}
+
+.view-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* 左下角工具栏下拉菜单 */
+.view-toolbar-dropdown {
+  position: relative;
+}
+
+.view-toolbar-dropdown .layer-dropdown-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 8px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 160px;
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.3);
+  display: none;
+}
+
+.view-toolbar-dropdown:hover .layer-dropdown-menu,
+.view-toolbar-dropdown .layer-dropdown-menu:hover {
+  display: block;
+}
+
+.layer-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 100;
+}
+
+.layer-dropdown:hover .layer-dropdown-menu,
+.layer-dropdown-menu:hover,
+#btn-layer-toggle:hover + .layer-dropdown-menu,
+.layer-dropdown-menu.show {
+  display: block;
+}
+
+.layer-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.layer-option:hover {
+  background: var(--bg-hover);
+}
+
+.layer-option input {
+  accent-color: var(--accent);
+}
+
+#view-toolbar .zoom-display {
+  font-size: 11px;
+  color: var(--text-dim);
+  min-width: 40px;
+  text-align: center;
+  margin-left: 4px;
+}
