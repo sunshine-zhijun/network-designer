@@ -405,7 +405,7 @@ Response ApiRouter::handleLoadFloor(const std::string& floorId) {
     std::string projectId = floor.rows[0].count("project_id") ? floor.rows[0].at("project_id") : "";
     
     // 获取该楼层的数据
-    auto fp = db_.query("SELECT * FROM floorplans WHERE floor_id = '" + projectId + "' OR project_id = '" + projectId + "'");
+    auto fp = db_.query("SELECT * FROM floorplans WHERE floor_id = '" + db_.escapeString(floorId) + "'");
     auto walls = db_.query("SELECT * FROM walls WHERE floor_id = '" + db_.escapeString(floorId) + "'");
     auto devices = db_.query("SELECT * FROM devices WHERE floor_id = '" + db_.escapeString(floorId) + "'");
     auto links = db_.query("SELECT * FROM links WHERE floor_id = '" + db_.escapeString(floorId) + "'");

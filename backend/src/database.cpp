@@ -240,10 +240,11 @@ DBResult Database::createFloorplan(const std::map<std::string, std::string>& dat
     std::string scale_y = data.count("scale_y") ? data.at("scale_y") : "1";
     std::string rotation = data.count("rotation") ? data.at("rotation") : "0";
     
-    std::string sql = "INSERT INTO floorplans (id, project_id, name, image_data, " +
+    std::string sql = "INSERT INTO floorplans (id, project_id, floor_id, name, image_data, " +
         std::string("image_width, image_height, offset_x, offset_y, scale_x, scale_y, rotation) VALUES ('") +
         escapeString(data.count("id") ? data.at("id") : "") + "', '" +
         escapeString(data.count("project_id") ? data.at("project_id") : "default") + "', '" +
+        escapeString(data.count("floor_id") ? data.at("floor_id") : "") + "', '" +
         escapeString(data.count("name") ? data.at("name") : "户型图") + "', '" +
         escapeString(data.count("image_data") ? data.at("image_data") : "") + "', " +
         (data.count("image_width") ? data.at("image_width") : "0") + ", " +

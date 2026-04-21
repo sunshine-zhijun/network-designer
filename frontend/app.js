@@ -379,6 +379,9 @@ async function setupProjectFloor() {
   // 加载项目列表
   await loadProjects();
   
+  // 初始状态：禁用工具栏
+  updateToolbarState();
+  
   // 绑定项目选择事件
   document.getElementById('project-select').addEventListener('change', onProjectChange);
   document.getElementById('floor-select').addEventListener('change', onFloorChange);
@@ -467,12 +470,51 @@ async function onProjectChange(e) {
   State.currentFloorId = null;
   await loadFloors();
   await loadFloorData();
+  updateToolbarState();  // 更新工具栏状态
 }
 
 // 楼层选择变化
 async function onFloorChange(e) {
   State.currentFloorId = e.target.value || null;
   await loadFloorData();
+  updateToolbarState();  // 更新工具栏状态
+}
+
+// 更新工具栏按钮的可用状态（未选择项目/楼层时禁用）
+function updateToolbarState() {
+  const hasProjectAndFloor = State.currentProjectId && State.currentFloorId;
+  const disabled = !hasProjectAndFloor;
+  
+  // 需要禁用的按钮ID列表
+  const disabledButtons = [
+    'btn-import',       // 导入
+    'btn-clear-all',    // 清空
+    'tool-wall-btn',    // 画墙
+    'tool-scale',       // 比例尺
+    'tool-place',       // 布点
+    'btn-link',         // 布线
+    'tool-select',      // 选择
+    'btn-heatmap',      // 热力图
+  ];
+  
+  disabledButtons.forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      btn.disabled = disabled;
+      btn.style.opacity = disabled ? '0.5' : '1';
+      btn.style.pointerEvents = disabled ? 'none' : 'auto';
+    }
+  });
+  
+  // 更新状态提示
+  const statusMsg = document.getElementById('status-msg');
+  if (statusMsg) {
+    if (disabled) {
+      statusMsg.textContent = '请先选择项目和楼层';
+    } else {
+      statusMsg.textContent = '就绪 — 导入户型图或开始绘制';
+    }
+  }
 }
 
 // 加载当前楼层数据
@@ -671,6 +713,7 @@ async function createNewFloor() {
     State.floorplanImage = null;
     updateCountBadges();
     render();
+    updateToolbarState();  // 更新工具栏状态
   } else {
     alert('创建楼层失败');
   }
@@ -725,6 +768,10 @@ function setupToolbar() {
 
   // 导入图纸
   document.getElementById('btn-import').addEventListener('click', () => {
+    if (!State.currentProjectId || !State.currentFloorId) {
+      alert('请先选择项目和楼层');
+      return;
+    }
     document.getElementById('file-input').click();
   });
   document.getElementById('file-input').addEventListener('change', onFileImport);
@@ -2348,12 +2395,17 @@ function importImageFile(file) {
 
 // 保存户型图到后端
 async function saveFloorplanToBackend(img) {
-  const projectId = State.projectId || 'default';
+  if (!State.currentProjectId || !State.currentFloorId) {
+    console.warn('[API] 未选择项目或楼层，跳过保存户型图');
+    return;
+  }
+  
   const imageData = img.src; // Base64 数据
 
   try {
     const result = await apiPost('/floorplans', {
-      project_id: projectId,
+      project_id: State.currentProjectId,
+      floor_id: State.currentFloorId,
       image_data: imageData,
       image_width: img.width,
       image_height: img.height,
