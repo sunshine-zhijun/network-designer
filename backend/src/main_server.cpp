@@ -84,35 +84,63 @@ inline void cleanupSocket(SOCKET sock) {
 // 读取HTTP请求
 bool readRequest(SOCKET clientSocket, std::string& method, std::string& path, 
                  std::map<std::string, std::string>& headers, std::string& body) {
+    std::string request;
     char buffer[8192];
-    int bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+    int contentLength = 0;
+    int headerEnd = -1;
     
-    if (bytesReceived <= 0) return false;
-    buffer[bytesReceived] = '\0';
-    
-    std::string request(buffer);
-    
-    // 解析请求行
-    std::istringstream ss(request);
-    ss >> method >> path;
-    
-    // 解析请求头
-    std::string line;
-    while (std::getline(ss, line) && line != "\r") {
-        size_t colonPos = line.find(':');
-        if (colonPos != std::string::npos) {
-            std::string key = line.substr(0, colonPos);
-            std::string value = line.substr(colonPos + 1);
-            // 去除空格
-            while (value[0] == ' ') value = value.substr(1);
-            headers[key] = value;
+    // 循环读取直到找到 header 结束标记
+    while (true) {
+        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+        if (bytesReceived <= 0) return false;
+        buffer[bytesReceived] = '\0';
+        request += buffer;
+        
+        // 检查是否找到 header 结束标记
+        size_t bodyStart = request.find("\r\n\r\n");
+        if (bodyStart != std::string::npos) {
+            headerEnd = bodyStart + 4;
+            // 解析 Content-Length
+            size_t pos = 0;
+            while (pos < request.size()) {
+                size_t lineEnd = request.find("\r\n", pos);
+                if (lineEnd == std::string::npos || lineEnd > bodyStart) break;
+                
+                std::string line = request.substr(pos, lineEnd - pos);
+                size_t colonPos = line.find(':');
+                if (colonPos != std::string::npos) {
+                    std::string key = line.substr(0, colonPos);
+                    std::string value = line.substr(colonPos + 1);
+                    while (value[0] == ' ') value = value.substr(1);
+                    headers[key] = value;
+                    if (key == "Content-Length") {
+                        contentLength = std::stoi(value);
+                    }
+                }
+                pos = lineEnd + 2;
+            }
+            break;
         }
+        
+        // 防止无限循环
+        if (request.size() > 100000) return false;
     }
     
-    // 检查是否有body
-    size_t bodyPos = request.find("\r\n\r\n");
-    if (bodyPos != std::string::npos) {
-        body = request.substr(bodyPos + 4);
+    // 解析请求行
+    std::istringstream ss(request.substr(0, headerEnd));
+    ss >> method >> path;
+    
+    // 读取 body
+    if (contentLength > 0) {
+        int bodyLen = request.size() - headerEnd;
+        while (bodyLen < contentLength) {
+            int bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+            if (bytesReceived <= 0) break;
+            buffer[bytesReceived] = '\0';
+            request += buffer;
+            bodyLen += bytesReceived;
+        }
+        body = request.substr(headerEnd, contentLength);
     }
     
     return true;
@@ -122,9 +150,14 @@ bool readRequest(SOCKET clientSocket, std::string& method, std::string& path,
 bool sendResponse(SOCKET clientSocket, int statusCode, const std::string& body,
                   const std::string& contentType = "application/json") {
     std::ostringstream ss;
-    ss << "HTTP/1.1 " << statusCode << " "
-       << (statusCode == 200 ? "OK" : statusCode == 404 ? "Not Found" : "Bad Request")
-       << "\r\n";
+    ss << "HTTP/1.1 " << statusCode << " ";
+    if (statusCode == 200) ss << "OK";
+    else if (statusCode == 201) ss << "Created";
+    else if (statusCode == 400) ss << "Bad Request";
+    else if (statusCode == 404) ss << "Not Found";
+    else if (statusCode == 500) ss << "Internal Server Error";
+    else ss << "Unknown";
+    ss << "\r\n";
     ss << "Content-Type: " << contentType << "; charset=utf-8\r\n";
     ss << "Content-Length: " << body.size() << "\r\n";
     ss << "Access-Control-Allow-Origin: *\r\n";
