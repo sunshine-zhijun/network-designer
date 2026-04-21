@@ -698,7 +698,7 @@ body[data-theme="light"] .layer-option:hover,
 #canvas-container {
   flex: 1;
   position: relative;
-  background: #12151a;
+  background: var(--bg-canvas);
   overflow: hidden;
 }
 

@@ -6,7 +6,7 @@
 <title>网规工具 - 无线网络规划系统</title>
 <link rel="stylesheet" href="style.css">
 </head>
-<body style="background: #1a1d23;">
+<body>
 <div id="app">
   <!-- 信号强度实时提示 -->
   <div id="signal-tooltip" class="signal-tooltip hidden">
@@ -167,7 +167,7 @@
   <!-- 主体区域 -->
   <div id="main-area">
     <!-- 画布区域 -->
-    <div id="canvas-container" style="background-color: #12151a;">
+    <div id="canvas-container">
       <canvas id="main-canvas"></canvas>
       <!-- 信号强度图例 -->
       <div id="heatmap-legend" class="hidden">
@@ -377,7 +377,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="offline_engine.js"></script>
-<script src="app.js"></script>
+<script src="data_service.js"></script>
+  <script src="app.js"></script>
 
 </body>
 </html>

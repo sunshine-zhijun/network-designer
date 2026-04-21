@@ -1,28 +1,11 @@
 /**
  * 网规工具前端核心逻辑
  * 功能：户型图导入、墙体绘制/识别、AP放置、信号热力图
+ * 数据持久化：data_service.js
  */
 
-// ============================================================
-// 全局状态
-// ============================================================
-const API_BASE = 'http://localhost:8766/api';
-let BACKEND_AVAILABLE = false;
-
-// 检测后端可用性
-async function checkBackend() {
-  try {
-    const r = await fetch(API_BASE + '/health', { signal: AbortSignal.timeout(1500) });
-    if (r.ok) {
-      BACKEND_AVAILABLE = true;
-      updateStatus('后端服务已连接 ✓');
-    }
-  } catch {
-    BACKEND_AVAILABLE = false;
-    updateStatus('离线模式（后端未连接，计算在浏览器端完成）');
-  }
-}
-setTimeout(checkBackend, 500);
+// 引入数据服务（内联，因为是单文件部署）
+// 如需分离，请创建 <script src="data_service.js"></script> 并删除以下代码
 
 const State = {
   tool: 'select',           // 当前工具

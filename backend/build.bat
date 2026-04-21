@@ -1,60 +1,62 @@
 @echo off
-chcp 65001 >nul
-echo ============================================
-echo   网规工具 - 后端编译脚本 (MSVC)
-echo ============================================
+REM 网规工具 - C++ 后端编译脚本
+REM 
+REM 依赖:
+REM   - MinGW-w64 或 MSVC
+REM   - SQLite3 (下载 sqlite3.dll 放到同一目录)
+REM   - httplib.h (如果使用)
+REM
+REM 使用 MinGW 编译:
+REM   mingw32-make
+REM   或手动执行: g++ -std=c++17 -O2 -I include -o server.exe src\*.cpp -lws2_32 -lsqlite3
 
-:: 检查cl.exe是否可用
-where cl >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [错误] 未找到MSVC编译器(cl.exe)
-    echo 请先运行 Visual Studio 开发者命令提示符
-    echo 或者执行: "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
-    echo.
-    echo [备选] 尝试使用 MinGW/GCC 编译...
-    goto try_gcc
+REM 清理
+if exist server.exe del server.exe
+if exist *.o del *.o 2>nul
+
+echo ========================================
+echo   网规工具 C++ 后端编译
+echo ========================================
+
+REM 检查MinGW
+where g++ >nul 2>nul
+if errorlevel 1 (
+    echo [ERROR] 未找到 g++，请安装 MinGW-w64
+    pause
+    exit /b 1
 )
 
-echo [INFO] 使用MSVC编译...
-cl /EHsc /std:c++17 /O2 /W3 ^
-   /I "include" ^
-   "src/main.cpp" ^
-   /Fe:"network_planner.exe" ^
-   /link ws2_32.lib
+echo [1/3] 编译 database.cpp...
+g++ -std=c++17 -O2 -c src\database.cpp -I include -o database.o -lws2_32 -lsqlite3
+if errorlevel 1 goto :error
 
-if %errorlevel% equ 0 (
-    echo.
-    echo [成功] 编译完成: network_planner.exe
-) else (
-    echo.
-    echo [失败] MSVC编译失败，尝试GCC...
-    goto try_gcc
-)
-goto end
+echo [2/3] 编译 api_handlers.cpp...
+g++ -std=c++17 -O2 -c src\api_handlers.cpp -I include -o api_handlers.o -lws2_32 -lsqlite3
+if errorlevel 1 goto :error
 
-:try_gcc
-where g++ >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [错误] 未找到g++编译器
-    echo 请安装 MinGW-w64 或 MSYS2
-    echo 下载地址: https://www.msys2.org/
-    goto end
-)
+echo [3/3] 链接 server.exe...
+g++ -std=c++17 -O2 -o server.exe database.o api_handlers.o src\main_server.cpp -lws2_32 -lsqlite3
+if errorlevel 1 goto :error
 
-echo [INFO] 使用GCC编译...
-g++ -std=c++17 -O2 -Wall ^
-    -I "include" ^
-    "src/main.cpp" ^
-    -o "network_planner.exe" ^
-    -lws2_32
+REM 清理临时文件
+del database.o api_handlers.o 2>nul
 
-if %errorlevel% equ 0 (
-    echo.
-    echo [成功] 编译完成: network_planner.exe
-) else (
-    echo.
-    echo [失败] 编译失败，请检查编译器安装
-)
+echo.
+echo ========================================
+echo   编译成功! server.exe 已生成
+echo ========================================
+echo.
+echo 运行: server.exe [端口]  (默认端口 8766)
+echo 示例: server.exe 8080
+echo.
+pause
+goto :end
+
+:error
+echo.
+echo ========================================
+echo   编译失败!
+echo ========================================
+pause
 
 :end
-pause
