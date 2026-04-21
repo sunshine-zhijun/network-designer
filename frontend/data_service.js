@@ -103,8 +103,8 @@ function loadFromLocalStorage() {
 async function loadFromBackend() {
   const projectId = State.projectId || 'default';
 
-  // 后端使用 /api/projects/${id}/load
-  const result = await apiGet(`/api/projects/${projectId}/load`);
+  // apiGet 内部已拼接 API_BASE(/api)，路径不要重复加 /api
+  const result = await apiGet(`/projects/${projectId}/load`);
   
   if (result && result.code === 0 && result.data) {
     console.log('[API] Loaded from backend');
@@ -241,7 +241,8 @@ async function saveToBackend() {
     } : null,
   };
 
-  // 后端使用 /api/projects/${id}/save
+    // apiPost 内部已拼接 API_BASE(/api)，路径不要重复加 /api
+  const result = await apiPost(`/projects/${projectId}/save`, data);/${id}/save
   const result = await apiPost(`/api/projects/${projectId}/save`, data);
 
   if (result && result.code === 0) {

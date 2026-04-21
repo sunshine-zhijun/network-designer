@@ -7,7 +7,7 @@
 // ============================================================
 // 后端配置
 // ============================================================
-const BACKEND_HOST = 'localhost';
+const BACKEND_HOST = '192.168.18.123';
 const BACKEND_PORT = '8766';
 const API_BASE = `http://${BACKEND_HOST}:${BACKEND_PORT}/api`;
 
@@ -2004,14 +2004,19 @@ async function saveFloorplanToBackend(img) {
   const imageData = img.src; // Base64 数据
 
   try {
-    await apiPost('/floorplans', {
+    const result = await apiPost('/floorplans', {
       project_id: projectId,
       image_data: imageData,
       image_width: img.width,
       image_height: img.height,
-      name: '户型图'
+      name: '户型图',
+      offset_x: 0,
+      offset_y: 0,
+      scale_x: 1,
+      scale_y: 1,
+      rotation: 0
     });
-    console.log('[API] 户型图已保存到后端');
+    console.log('[API] 户型图已保存到后端', result);
   } catch (e) {
     console.warn('[API] 户型图保存失败:', e.message);
   }
