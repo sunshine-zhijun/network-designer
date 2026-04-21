@@ -46,6 +46,7 @@ inline Response jsonError(int code, const std::string& msg) {
 }
 
 inline Response jsonData(const std::map<std::string, std::string>& data) {
+    std::string mapToJson(const std::map<std::string, std::string>& data);
     Response res;
     res.body = "{\"code\":0,\"message\":\"success\",\"data\":" + mapToJson(data) + "}";
     return res;
@@ -73,6 +74,9 @@ public:
     }
     
     Response handle(const Request& req);
+
+privat:
+    void initRoutes();
     
     // 健康检查
     Response handleHealth();

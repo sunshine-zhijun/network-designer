@@ -4,6 +4,35 @@
  * 数据持久化：data_service.js
  */
 
+// ============================================================
+// 后端配置
+// ============================================================
+const BACKEND_HOST = 'localhost';
+const BACKEND_PORT = '8766';
+const API_BASE = `http://${BACKEND_HOST}:${BACKEND_PORT}/api`;
+
+// 后端可用性检测（如果后端不可用，将自动降级到本地存储）
+let BACKEND_AVAILABLE = true;
+
+// 启动时检测后端可用性
+(async function checkBackend() {
+  try {
+    const response = await fetch(`${API_BASE}/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(2000)
+    });
+    BACKEND_AVAILABLE = response.ok;
+    if (BACKEND_AVAILABLE) {
+      console.log('[API] Backend connected:', API_BASE);
+    } else {
+      console.log('[API] Backend not available, using offline mode');
+    }
+  } catch (e) {
+    BACKEND_AVAILABLE = false;
+    console.log('[API] Backend not available, using offline mode');
+  }
+})();
+
 // 引入数据服务（内联，因为是单文件部署）
 // 如需分离，请创建 <script src="data_service.js"></script> 并删除以下代码
 
