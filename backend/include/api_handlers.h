@@ -89,6 +89,14 @@ privat:
     Response handleSaveProject(const std::string& id, const Request& req);
     Response handleLoadProject(const std::string& id);
     
+    // 楼层
+    Response handleGetFloors(const std::string& projectId);
+    Response handleGetFloor(const std::string& id);
+    Response handleCreateFloor(const Request& req);
+    Response handleUpdateFloor(const std::string& id, const Request& req);
+    Response handleDeleteFloor(const std::string& id);
+    Response handleLoadFloor(const std::string& floorId);
+    
     // 户型图
     Response handleGetFloorplans(const std::string& projectId);
     Response handleCreateFloorplan(const Request& req);

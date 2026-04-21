@@ -44,10 +44,22 @@ CREATE TABLE IF NOT EXISTS projects (
     updated_at TEXT DEFAULT (datetime('now'))
 );
 
+-- 楼层表
+CREATE TABLE IF NOT EXISTS floors (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    floor_number INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
 -- 户型图表
 CREATE TABLE IF NOT EXISTS floorplans (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL,
+    floor_id TEXT,
     name TEXT,
     image_data TEXT NOT NULL,
     image_width INTEGER,
@@ -58,13 +70,15 @@ CREATE TABLE IF NOT EXISTS floorplans (
     scale_y REAL DEFAULT 1,
     rotation REAL DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (floor_id) REFERENCES floors(id) ON DELETE CASCADE
 );
 
 -- 墙体表
 CREATE TABLE IF NOT EXISTS walls (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL,
+    floor_id TEXT,
     floorplan_id TEXT,
     x1 REAL NOT NULL,
     y1 REAL NOT NULL,
@@ -76,6 +90,7 @@ CREATE TABLE IF NOT EXISTS walls (
     elevation REAL DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (floor_id) REFERENCES floors(id) ON DELETE CASCADE,
     FOREIGN KEY (floorplan_id) REFERENCES floorplans(id) ON DELETE SET NULL
 );
 
@@ -83,6 +98,7 @@ CREATE TABLE IF NOT EXISTS walls (
 CREATE TABLE IF NOT EXISTS devices (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL,
+    floor_id TEXT,
     device_type TEXT NOT NULL,
     model TEXT,
     name TEXT,
@@ -92,13 +108,15 @@ CREATE TABLE IF NOT EXISTS devices (
     power_dbm INTEGER DEFAULT 20,
     angle REAL DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (floor_id) REFERENCES floors(id) ON DELETE CASCADE
 );
 
 -- 网线连接表
 CREATE TABLE IF NOT EXISTS links (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL,
+    floor_id TEXT,
     from_device_id TEXT NOT NULL,
     to_device_id TEXT NOT NULL,
     route_points TEXT,
@@ -106,6 +124,7 @@ CREATE TABLE IF NOT EXISTS links (
     length_m REAL,
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (floor_id) REFERENCES floors(id) ON DELETE CASCADE,
     FOREIGN KEY (from_device_id) REFERENCES devices(id) ON DELETE CASCADE,
     FOREIGN KEY (to_device_id) REFERENCES devices(id) ON DELETE CASCADE
 );
@@ -132,10 +151,16 @@ CREATE TABLE IF NOT EXISTS config (
 );
 
 -- 索引
+CREATE INDEX IF NOT EXISTS idx_projects_updated ON projects(updated_at);
+CREATE INDEX IF NOT EXISTS idx_floors_project ON floors(project_id);
 CREATE INDEX IF NOT EXISTS idx_floorplans_project ON floorplans(project_id);
+CREATE INDEX IF NOT EXISTS idx_floorplans_floor ON floorplans(floor_id);
 CREATE INDEX IF NOT EXISTS idx_walls_project ON walls(project_id);
+CREATE INDEX IF NOT EXISTS idx_walls_floor ON walls(floor_id);
 CREATE INDEX IF NOT EXISTS idx_devices_project ON devices(project_id);
+CREATE INDEX IF NOT EXISTS idx_devices_floor ON devices(floor_id);
 CREATE INDEX IF NOT EXISTS idx_links_project ON links(project_id);
+CREATE INDEX IF NOT EXISTS idx_links_floor ON links(floor_id);
 CREATE INDEX IF NOT EXISTS idx_scales_project ON scales(project_id);
 
 -- 默认项目
@@ -151,6 +176,11 @@ namespace ApiPath {
     // 项目
     const std::string PROJECTS = "/api/projects";
     const std::string PROJECT_BY_ID = "/api/projects/";
+    
+    // 楼层
+    const std::string FLOORS = "/api/floors";
+    const std::string FLOOR_BY_ID = "/api/floors/";
+    const std::string FLOORS_BY_PROJECT = "/api/projects/*/floors";
     
     // 户型图
     const std::string FLOORPLANS = "/api/floorplans";

@@ -177,6 +177,48 @@ DBResult Database::deleteProject(const std::string& id) {
     return execute(sql);
 }
 
+// ========== 楼层操作 ==========
+
+DBResult Database::getFloors(const std::string& projectId) {
+    std::string sql = "SELECT * FROM floors WHERE project_id = '" + 
+        escapeString(projectId) + "' ORDER BY floor_number ASC, created_at ASC";
+    return query(sql);
+}
+
+DBResult Database::getFloorById(const std::string& id) {
+    std::string sql = "SELECT * FROM floors WHERE id = '" + escapeString(id) + "'";
+    return query(sql);
+}
+
+DBResult Database::createFloor(const std::map<std::string, std::string>& data) {
+    std::string sql = "INSERT INTO floors (id, project_id, name, floor_number) VALUES ('" +
+        escapeString(data.count("id") ? data.at("id") : "") + "', '" +
+        escapeString(data.count("project_id") ? data.at("project_id") : "default") + "', '" +
+        escapeString(data.count("name") ? data.at("name") : "新楼层") + "', " +
+        (data.count("floor_number") ? data.at("floor_number") : "0") + ")";
+    return execute(sql);
+}
+
+DBResult Database::updateFloor(const std::string& id,
+                               const std::map<std::string, std::string>& data) {
+    std::vector<std::string> setters;
+    for (const auto& pair : data) {
+        if (pair.first != "id") {
+            setters.push_back(pair.first + " = '" + escapeString(pair.second) + "'");
+        }
+    }
+    setters.push_back("updated_at = datetime('now')");
+    
+    std::string sql = "UPDATE floors SET " + 
+        join(setters, ", ") + " WHERE id = '" + escapeString(id) + "'";
+    return execute(sql);
+}
+
+DBResult Database::deleteFloor(const std::string& id) {
+    std::string sql = "DELETE FROM floors WHERE id = '" + escapeString(id) + "'";
+    return execute(sql);
+}
+
 // ========== 户型图操作 ==========
 
 DBResult Database::getFloorplans(const std::string& projectId) {

@@ -209,6 +209,29 @@ Response ApiRouter::handle(const Request& req) {
         return handleDeleteProject(id);
     }
     
+    // 楼层路由
+    if (path == "/api/floors" && req.method == "POST") {
+        return handleCreateFloor(req);
+    }
+    if (path.substr(0, 12) == "/api/floors/" && req.method == "GET") {
+        std::string id = extractPathParam(path, "/api/floors/*");
+        if (path.find("/load") != std::string::npos) {
+            return handleLoadFloor(id);
+        }
+        return handleGetFloor(id);
+    }
+    if (path.substr(0, 12) == "/api/floors/" && req.method == "PUT") {
+        std::string id = extractPathParam(path, "/api/floors/*");
+        return handleUpdateFloor(id, req);
+    }
+    if (path.substr(0, 12) == "/api/floors/" && req.method == "DELETE") {
+        std::string id = extractPathParam(path, "/api/floors/*");
+        return handleDeleteFloor(id);
+    }
+    if (path == "/api/floors" && req.method == "GET" && req.queryParams.count("project_id")) {
+        return handleGetFloors(req.queryParams.at("project_id"));
+    }
+    
     // 户型图路由
     if (path == "/api/floorplans" && req.method == "POST") {
         return handleCreateFloorplan(req);
@@ -337,6 +360,72 @@ Response ApiRouter::handleDeleteProject(const std::string& id) {
     return jsonSuccess("{}");
 }
 
+// 楼层
+Response ApiRouter::handleGetFloors(const std::string& projectId) {
+    auto result = db_.getFloors(projectId);
+    if (!result.success) return jsonError(500, result.error);
+    return jsonSuccess(rowsToJson(result.rows));
+}
+
+Response ApiRouter::handleGetFloor(const std::string& id) {
+    auto result = db_.getFloorById(id);
+    if (result.rows.empty()) return jsonError(404, "Floor not found");
+    return jsonSuccess(rowsToJson(result.rows));
+}
+
+Response ApiRouter::handleCreateFloor(const Request& req) {
+    auto data = parseJsonBody(req.body);
+    data["id"] = generateUUID();
+    
+    auto result = db_.createFloor(data);
+    if (!result.success) return jsonError(500, result.error);
+    
+    auto floor = db_.getFloorById(data["id"]);
+    return jsonSuccess(rowsToJson(floor.rows));
+}
+
+Response ApiRouter::handleUpdateFloor(const std::string& id, const Request& req) {
+    auto data = parseJsonBody(req.body);
+    auto result = db_.updateFloor(id, data);
+    if (!result.success) return jsonError(500, result.error);
+    return jsonSuccess("{}");
+}
+
+Response ApiRouter::handleDeleteFloor(const std::string& id) {
+    auto result = db_.deleteFloor(id);
+    if (!result.success) return jsonError(500, result.error);
+    return jsonSuccess("{}");
+}
+
+// 按楼层加载数据
+Response ApiRouter::handleLoadFloor(const std::string& floorId) {
+    auto floor = db_.getFloorById(floorId);
+    if (floor.rows.empty()) return jsonError(404, "Floor not found");
+    
+    std::string projectId = floor.rows[0].count("project_id") ? floor.rows[0].at("project_id") : "";
+    
+    // 获取该楼层的数据
+    auto fp = db_.query("SELECT * FROM floorplans WHERE floor_id = '" + projectId + "' OR project_id = '" + projectId + "'");
+    auto walls = db_.query("SELECT * FROM walls WHERE floor_id = '" + escapeString(floorId) + "'");
+    auto devices = db_.query("SELECT * FROM devices WHERE floor_id = '" + escapeString(floorId) + "'");
+    auto links = db_.query("SELECT * FROM links WHERE floor_id = '" + escapeString(floorId) + "'");
+    auto scale = db_.getScale(projectId);
+    
+    std::ostringstream ss;
+    ss << "{";
+    ss << "\"floor\":" << rowsToJson(floor.rows) << ",";
+    ss << "\"floorplan\":" << rowsToJson(fp.rows) << ",";
+    ss << "\"walls\":" << rowsToJson(walls.rows) << ",";
+    ss << "\"devices\":" << rowsToJson(devices.rows) << ",";
+    ss << "\"links\":" << rowsToJson(links.rows) << ",";
+    ss << "\"scale\":" << rowsToJson(scale.rows);
+    ss << "}";
+    
+    Response res;
+    res.body = "{\"code\":0,\"message\":\"success\",\"data\":" + ss.str() + "}";
+    return res;
+}
+
 Response ApiRouter::handleSaveProject(const std::string& id, const Request& req) {
     auto data = parseJsonBody(req.body);
     auto result = db_.saveProjectData(id, data);
@@ -345,17 +434,40 @@ Response ApiRouter::handleSaveProject(const std::string& id, const Request& req)
 }
 
 Response ApiRouter::handleLoadProject(const std::string& id) {
-    auto result = db_.loadProjectData(id);
-    if (!result.success) return jsonError(500, result.error);
+    // 获取项目
+    auto project = db_.getProjectById(id);
+    if (project.rows.empty()) {
+        // 如果项目不存在，创建默认项目
+        db_.createProject(id, "默认项目", "");
+        project = db_.getProjectById(id);
+    }
+    
+    // 获取所有楼层
+    auto floors = db_.getFloors(id);
     
     std::ostringstream ss;
     ss << "{";
-    ss << "\"project\":" << rowsToJson(result.data["project"]) << ",";
-    ss << "\"floorplan\":" << rowsToJson(result.data["floorplan"]) << ",";
-    ss << "\"walls\":" << rowsToJson(result.data["walls"]) << ",";
-    ss << "\"devices\":" << rowsToJson(result.data["devices"]) << ",";
-    ss << "\"links\":" << rowsToJson(result.data["links"]) << ",";
-    ss << "\"scale\":" << rowsToJson(result.data["scale"]);
+    ss << "\"project\":" << rowsToJson(project.rows) << ",";
+    ss << "\"floors\":" << rowsToJson(floors.rows) << ",";
+    
+    // 如果有楼层，返回第一个楼层的完整数据
+    if (!floors.rows.empty()) {
+        std::string firstFloorId = floors.rows[0].count("id") ? floors.rows[0].at("id") : "";
+        
+        auto fp = db_.getFloorplans(id);
+        auto walls = db_.getWalls(id);
+        auto devices = db_.getDevices(id);
+        auto links = db_.getLinks(id);
+        auto scale = db_.getScale(id);
+        
+        ss << "\"floorplan\":" << rowsToJson(fp.rows) << ",";
+        ss << "\"walls\":" << rowsToJson(walls.rows) << ",";
+        ss << "\"devices\":" << rowsToJson(devices.rows) << ",";
+        ss << "\"links\":" << rowsToJson(links.rows) << ",";
+        ss << "\"scale\":" << rowsToJson(scale.rows);
+    } else {
+        ss << "\"floorplan\":[],\"walls\":[],\"devices\":[],\"links\":[],\"scale\":[]";
+    }
     ss << "}";
     
     Response res;

@@ -20,6 +20,19 @@
     <div class="toolbar-left">
       <div class="logo">📡 网规</div>
       <div class="toolbar-divider"></div>
+      <!-- 项目/楼层选择 -->
+      <div class="project-selector">
+        <select id="project-select" title="选择项目">
+          <option value="">加载项目...</option>
+        </select>
+        <select id="floor-select" title="选择楼层">
+          <option value="">选择楼层</option>
+        </select>
+        <button class="btn btn-small" id="btn-new-project" title="新建项目">+ 项目</button>
+        <button class="btn btn-small" id="btn-new-floor" title="新建楼层">+ 楼层</button>
+        <button class="btn btn-small btn-accent" id="btn-save" title="保存">💾 保存</button>
+      </div>
+      <div class="toolbar-divider"></div>
       <button class="btn" id="btn-import" title="导入户型图">
         <span class="btn-icon">📁</span> 导入
       </button>
@@ -371,6 +384,44 @@
     <p id="detect-msg">正在分析户型图...</p>
     <div class="progress-bar">
       <div class="progress-fill" id="detect-progress"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 新建项目对话框 -->
+<div id="modal-new-project" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-title">📁 新建项目</div>
+    <div class="form-row">
+      <label>项目名称</label>
+      <input type="text" id="new-project-name" placeholder="请输入项目名称" value="">
+    </div>
+    <div class="form-row">
+      <label>描述</label>
+      <input type="text" id="new-project-desc" placeholder="项目描述（可选）" value="">
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="modal-new-project-cancel">取消</button>
+      <button class="btn btn-primary" id="modal-new-project-confirm">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新建楼层对话框 -->
+<div id="modal-new-floor" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-title">🏢 新建楼层</div>
+    <div class="form-row">
+      <label>楼层名称</label>
+      <input type="text" id="new-floor-name" placeholder="如：一楼、1F、B1" value="">
+    </div>
+    <div class="form-row">
+      <label>楼层编号</label>
+      <input type="number" id="new-floor-number" placeholder="数字，如：1、-1、2" value="1">
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="modal-new-floor-cancel">取消</button>
+      <button class="btn btn-primary" id="modal-new-floor-confirm">创建</button>
     </div>
   </div>
 </div>

@@ -194,6 +194,37 @@ body[data-theme="light"] {
   margin-right: 8px;
 }
 
+/* 项目/楼层选择器 */
+.project-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  background: var(--bg-dark);
+  border-radius: 6px;
+}
+
+.project-selector select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 4px 8px;
+  font-size: 12px;
+  min-width: 80px;
+  cursor: pointer;
+}
+
+.project-selector select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.project-selector .btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
 .toolbar-group {
   display: flex;
   align-items: center;

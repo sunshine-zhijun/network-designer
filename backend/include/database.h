@@ -51,6 +51,13 @@ public:
     DBResult createProject(const std::string& id, const std::string& name, const std::string& description);
     DBResult deleteProject(const std::string& id);
     
+    // ========== 楼层操作 ==========
+    DBResult getFloors(const std::string& projectId);
+    DBResult getFloorById(const std::string& id);
+    DBResult createFloor(const std::map<std::string, std::string>& data);
+    DBResult updateFloor(const std::string& id, const std::map<std::string, std::string>& data);
+    DBResult deleteFloor(const std::string& id);
+    
     // ========== 户型图操作 ==========
     DBResult getFloorplans(const std::string& projectId);
     DBResult getFloorplanById(const std::string& id);

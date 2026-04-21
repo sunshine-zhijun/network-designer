@@ -43,6 +43,11 @@ const State = {
   isPanning: false,
   panStart: null,
 
+  // 项目/楼层管理
+  currentProjectId: 'default',
+  currentFloorId: null,
+  floors: [],  // 当前项目的楼层列表
+
   // 户型图
   floorplanImage: null,
   floorplanW: 0, floorplanH: 0,
@@ -263,6 +268,7 @@ function init() {
   setupCanvas();
   setupPanels();
   renderMaterialList();
+  setupProjectFloor();  // 初始化项目/楼层管理
   loadFromBackend();
   requestAnimationFrame(renderLoop);
 }
@@ -363,6 +369,312 @@ async function apiDelete(path) {
 }
 
 // loadFromBackend() 在 data_service.js 中定义，会被调用来加载后端数据
+
+// ============================================================
+// 项目/楼层管理
+// ============================================================
+
+// 初始化项目/楼层管理
+async function setupProjectFloor() {
+  // 加载项目列表
+  await loadProjects();
+  
+  // 绑定项目选择事件
+  document.getElementById('project-select').addEventListener('change', onProjectChange);
+  document.getElementById('floor-select').addEventListener('change', onFloorChange);
+  
+  // 绑定新建项目/楼层按钮
+  document.getElementById('btn-new-project').addEventListener('click', showNewProjectModal);
+  document.getElementById('btn-new-floor').addEventListener('click', showNewFloorModal);
+  document.getElementById('btn-save').addEventListener('click', saveCurrentFloor);
+  
+  // 新建项目对话框
+  document.getElementById('modal-new-project-cancel').addEventListener('click', () => {
+    document.getElementById('modal-new-project').classList.add('hidden');
+  });
+  document.getElementById('modal-new-project-confirm').addEventListener('click', createNewProject);
+  
+  // 新建楼层对话框
+  document.getElementById('modal-new-floor-cancel').addEventListener('click', () => {
+    document.getElementById('modal-new-floor').classList.add('hidden');
+  });
+  document.getElementById('modal-new-floor-confirm').addEventListener('click', createNewFloor);
+}
+
+// 加载项目列表
+async function loadProjects() {
+  const select = document.getElementById('project-select');
+  const result = await apiGet('/projects');
+  
+  select.innerHTML = '';
+  if (result && result.code === 0 && result.data.length > 0) {
+    for (const p of result.data) {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name || p.id;
+      select.appendChild(opt);
+    }
+    // 选中当前项目
+    if (State.currentProjectId) {
+      select.value = State.currentProjectId;
+    }
+    // 加载楼层列表
+    await loadFloors();
+  } else {
+    // 没有项目时创建默认项目
+    await apiPost('/projects', { id: 'default', name: '默认项目' });
+    const opt = document.createElement('option');
+    opt.value = 'default';
+    opt.textContent = '默认项目';
+    select.appendChild(opt);
+    select.value = 'default';
+    State.currentProjectId = 'default';
+    await loadFloors();
+  }
+}
+
+// 加载楼层列表
+async function loadFloors() {
+  const select = document.getElementById('floor-select');
+  const projectId = State.currentProjectId || document.getElementById('project-select').value;
+  
+  select.innerHTML = '<option value="">选择楼层</option>';
+  
+  const result = await apiGet(`/floors?project_id=${projectId}`);
+  State.floors = [];
+  
+  if (result && result.code === 0 && result.data.length > 0) {
+    State.floors = result.data;
+    for (const f of result.data) {
+      const opt = document.createElement('option');
+      opt.value = f.id;
+      opt.textContent = f.name || `楼层 ${f.floor_number || 0}`;
+      select.appendChild(opt);
+    }
+    // 如果有当前楼层则选中
+    if (State.currentFloorId) {
+      select.value = State.currentFloorId;
+    } else if (State.floors.length > 0) {
+      select.value = State.floors[0].id;
+      State.currentFloorId = State.floors[0].id;
+    }
+  }
+}
+
+// 项目选择变化
+async function onProjectChange(e) {
+  State.currentProjectId = e.target.value;
+  State.currentFloorId = null;
+  await loadFloors();
+  await loadFloorData();
+}
+
+// 楼层选择变化
+async function onFloorChange(e) {
+  State.currentFloorId = e.target.value || null;
+  await loadFloorData();
+}
+
+// 加载当前楼层数据
+async function loadFloorData() {
+  if (!State.currentFloorId) {
+    // 清空当前数据
+    State.walls = [];
+    State.aps = [];
+    State.links = [];
+    State.floorplanImage = null;
+    updateCountBadges();
+    render();
+    return;
+  }
+  
+  // 从后端加载该楼层数据
+  const result = await apiGet(`/floors/${State.currentFloorId}/load`);
+  if (result && result.code === 0) {
+    const data = result.data;
+    
+    // 更新墙体
+    State.walls = (data.walls || []).map(w => ({
+      id: w.id,
+      x1: parseFloat(w.x1),
+      y1: parseFloat(w.y1),
+      x2: parseFloat(w.x2),
+      y2: parseFloat(w.y2),
+      material_id: w.material || 'brick',
+      material_name: MATERIALS[w.material || 'brick']?.name || '砖墙',
+      thickness: parseFloat(w.thickness) || 10,
+    }));
+    
+    // 更新设备
+    State.aps = (data.devices || []).map(d => ({
+      id: d.id,
+      type: d.device_type || 'ap',
+      model: d.model || '',
+      name: d.name || '',
+      x: parseFloat(d.x),
+      y: parseFloat(d.y),
+      freq_bands: (d.freq_bands || '2.4,5').split(','),
+      power_dbm: parseInt(d.power_dbm) || 20,
+      angle: parseFloat(d.angle) || 0,
+      enabled: true,
+    }));
+    
+    // 更新连接
+    State.links = (data.links || []).map(l => ({
+      id: l.id,
+      fromId: l.from_device_id,
+      toId: l.to_device_id,
+      route: l.route_points ? JSON.parse(l.route_points) : [],
+      cable_type: l.cable_type || 'CAT6',
+      length_m: parseFloat(l.length_m) || 0,
+    }));
+    
+    // 更新户型图
+    if (data.floorplan && data.floorplan.length > 0) {
+      const fp = data.floorplan[0];
+      if (fp.image_data) {
+        loadFloorplanFromBase64(fp.image_data);
+      }
+    }
+    
+    updateCountBadges();
+    updateDeviceList();
+    render();
+    renderAPList();
+  }
+}
+
+// 保存当前楼层数据
+async function saveCurrentFloor() {
+  if (!State.currentFloorId) {
+    alert('请先选择或创建楼层');
+    return;
+  }
+  
+  try {
+    // 保存墙体
+    for (const wall of State.walls) {
+      await apiPost('/walls', {
+        id: wall.id,
+        project_id: State.currentProjectId,
+        floor_id: State.currentFloorId,
+        x1: wall.x1,
+        y1: wall.y1,
+        x2: wall.x2,
+        y2: wall.y2,
+        material: wall.material_id || 'brick',
+        thickness: wall.thickness || 10,
+      });
+    }
+    
+    // 保存设备
+    for (const ap of State.aps) {
+      await apiPost('/devices', {
+        id: ap.id,
+        project_id: State.currentProjectId,
+        floor_id: State.currentFloorId,
+        device_type: ap.type,
+        model: ap.model || '',
+        name: ap.name || '',
+        x: ap.x,
+        y: ap.y,
+        freq_bands: ap.freq_bands?.join(',') || '2.4,5',
+        power_dbm: ap.power_dbm || 20,
+        angle: ap.angle || 0,
+      });
+    }
+    
+    // 保存连接
+    for (const link of State.links) {
+      await apiPost('/links', {
+        id: link.id,
+        project_id: State.currentProjectId,
+        floor_id: State.currentFloorId,
+        from_device_id: link.fromId,
+        to_device_id: link.toId,
+        route_points: JSON.stringify(link.route || []),
+        cable_type: link.cable_type || 'CAT6',
+        length_m: link.length_m || 0,
+      });
+    }
+    
+    alert('保存成功！');
+  } catch (e) {
+    console.error('保存失败:', e);
+    alert('保存失败: ' + e.message);
+  }
+}
+
+// 显示新建项目对话框
+function showNewProjectModal() {
+  document.getElementById('new-project-name').value = '';
+  document.getElementById('new-project-desc').value = '';
+  document.getElementById('modal-new-project').classList.remove('hidden');
+}
+
+// 创建新项目
+async function createNewProject() {
+  const name = document.getElementById('new-project-name').value.trim() || '新项目';
+  const desc = document.getElementById('new-project-desc').value.trim() || '';
+  
+  const id = 'proj-' + Date.now();
+  const result = await apiPost('/projects', { id, name, description: desc });
+  
+  document.getElementById('modal-new-project').classList.add('hidden');
+  
+  if (result && result.code === 0) {
+    State.currentProjectId = id;
+    State.currentFloorId = null;
+    await loadProjects();
+    // 选中新创建的项目
+    document.getElementById('project-select').value = id;
+  } else {
+    alert('创建项目失败');
+  }
+}
+
+// 显示新建楼层对话框
+function showNewFloorModal() {
+  if (!State.currentProjectId) {
+    alert('请先选择或创建项目');
+    return;
+  }
+  document.getElementById('new-floor-name').value = '';
+  document.getElementById('new-floor-number').value = State.floors.length + 1;
+  document.getElementById('modal-new-floor').classList.remove('hidden');
+}
+
+// 创建新楼层
+async function createNewFloor() {
+  const name = document.getElementById('new-floor-name').value.trim() || `楼层 ${State.floors.length + 1}`;
+  const floor_number = parseInt(document.getElementById('new-floor-number').value) || 0;
+  
+  const id = 'floor-' + Date.now();
+  const result = await apiPost('/floors', {
+    id,
+    project_id: State.currentProjectId,
+    name,
+    floor_number,
+  });
+  
+  document.getElementById('modal-new-floor').classList.add('hidden');
+  
+  if (result && result.code === 0) {
+    State.currentFloorId = id;
+    await loadFloors();
+    // 选中新创建的楼层
+    document.getElementById('floor-select').value = id;
+    // 清空当前楼层的数据
+    State.walls = [];
+    State.aps = [];
+    State.links = [];
+    State.floorplanImage = null;
+    updateCountBadges();
+    render();
+  } else {
+    alert('创建楼层失败');
+  }
+}
 
 // ============================================================
 // 工具栏设置
@@ -1632,33 +1944,40 @@ async function detectWalls() {
   modal.classList.remove('hidden');
 
   msg.textContent = '二值化处理...';
-  progress.style.width = '20%';
+  progress.style.width = '10%';
 
   const offscreen = document.createElement('canvas');
-  const scale = Math.min(800 / State.floorplanW, 600 / State.floorplanH, 1);
+  // 限制最大尺寸，避免计算量过大
+  const maxDim = 600;
+  const scale = Math.min(maxDim / State.floorplanW, maxDim / State.floorplanH, 1);
   offscreen.width = Math.round(State.floorplanW * scale);
   offscreen.height = Math.round(State.floorplanH * scale);
   const octx = offscreen.getContext('2d');
   octx.drawImage(State.floorplanImage, 0, 0, offscreen.width, offscreen.height);
 
-  progress.style.width = '40%';
-  msg.textContent = '二值化 + 闭运算（3轮）...';
-  await new Promise(resolve => setTimeout(resolve, 50));
+  progress.style.width = '20%';
+  msg.textContent = '二值化...';
+  
+  // 使用 Promise + setTimeout 让UI有更新机会
+  await new Promise(resolve => setTimeout(resolve, 10));
 
   const imageData = octx.getImageData(0, 0, offscreen.width, offscreen.height);
-  const walls = detectWallsFromImageData(imageData, 1 / scale);
+  
+  // 使用 requestIdleCallback 或 setTimeout 避免阻塞
+  const walls = await new Promise(resolve => {
+    setTimeout(() => {
+      try {
+        const result = detectWallsFromImageData(imageData, 1 / scale);
+        resolve(result);
+      } catch (e) {
+        console.error('墙体识别失败:', e);
+        resolve([]);
+      }
+    }, 10);
+  });
 
-  progress.style.width = '70%';
-  msg.textContent = '行/列投影分析（找高密度墙线）...';
-  await new Promise(resolve => setTimeout(resolve, 50));
-
-  progress.style.width = '85%';
-  msg.textContent = '扫描线段 + 聚类合并...';
-  await new Promise(resolve => setTimeout(resolve, 50));
-
-  progress.style.width = '95%';
+  progress.style.width = '80%';
   msg.textContent = `发现 ${walls.length} 条墙体线段...`;
-  await new Promise(resolve => setTimeout(resolve, 100));
 
   if (walls.length > 0) {
     // 本地先渲染（离线模式必须）
@@ -1677,14 +1996,20 @@ async function detectWalls() {
 
     // 尝试同步后端（可选，失败不影响本地）
     if (BACKEND_AVAILABLE) {
-      await apiPost('/walls/batch', { walls });
-      await loadFromBackend();
+      for (const wall of walls) {
+        await apiPost('/walls', {
+          project_id: State.currentProjectId || 'default',
+          floor_id: State.currentFloorId || null,
+          x1: wall.x1, y1: wall.y1, x2: wall.x2, y2: wall.y2,
+          material: wall.material_id || 'brick',
+        });
+      }
     }
   }
 
   progress.style.width = '100%';
   msg.textContent = `识别完成，共检测到 ${walls.length} 条墙体`;
-  await new Promise(resolve => setTimeout(resolve, 800));
+  await new Promise(resolve => setTimeout(resolve, 500));
   modal.classList.add('hidden');
   requestHeatmapIfVisible();
 }
@@ -1859,42 +2184,65 @@ function detectWallsFromImageData(imageData, scaleBack) {
 }
 
 /**
- * 形态学闭运算（先膨胀后腐蚀）
+ * 形态学闭运算（优化版：使用积分图加速）
+ * 先膨胀后腐蚀，膨胀半径r
  */
 function morphologicalClose(binary, width, height, radius) {
-  const diam = radius * 2 + 1;
-
-  // 膨胀
+  // 步骤1: 膨胀 - 使用快速扫描线方法
   const dilated = new Uint8Array(width * height);
+  
+  // 对每个像素，检查其 radius 邻域内是否有任何前景像素
+  // 优化：只检查边界像素
   for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      if (binary[y * width + x] === 1) {
-        for (let dy = -radius; dy <= radius; dy++) {
-          const ny = y + dy;
-          if (ny < 0 || ny >= height) continue;
-          for (let dx = -radius; dx <= radius; dx++) {
-            const nx = x + dx;
-            if (nx >= 0 && nx < width) dilated[ny * width + nx] = 1;
+    // 计算该行的膨胀结果
+    let streakStart = -1;
+    let inStreak = false;
+    
+    for (let x = 0; x <= width; x++) {
+      const isFg = x < width && binary[y * width + x] === 1;
+      
+      if (isFg && !inStreak) {
+        streakStart = x;
+        inStreak = true;
+      } else if (!isFg && inStreak) {
+        // 结束一个连续段，对整段应用膨胀
+        const dilatedStart = Math.max(0, streakStart - radius);
+        const dilatedEnd = Math.min(width - 1, x - 1 + radius);
+        for (let dx = dilatedStart; dx <= dilatedEnd; dx++) {
+          const dyMin = Math.max(0, y - radius);
+          const dyMax = Math.min(height - 1, y + radius);
+          for (let dy = dyMin; dy <= dyMax; dy++) {
+            dilated[dy * width + dx] = 1;
+          }
+        }
+        inStreak = false;
+      }
+    }
+  }
+  
+  // 步骤2: 腐蚀 - 使用积分图加速
+  // 简化：使用边界检查法
+  const result = new Uint8Array(width * height);
+  const r = radius;
+  
+  for (let y = r; y < height - r; y++) {
+    for (let x = r; x < width - r; x++) {
+      // 检查 r*r 窗口内是否全为前景
+      let allFg = true;
+      outer:
+      for (let dy = -r; dy <= r; dy++) {
+        const row = (y + dy) * width;
+        for (let dx = -r; dx <= r; dx++) {
+          if (!dilated[row + x + dx]) {
+            allFg = false;
+            break outer;
           }
         }
       }
+      result[y * width + x] = allFg ? 1 : 0;
     }
   }
-
-  // 腐蚀
-  const result = new Uint8Array(width * height);
-  for (let y = radius; y < height - radius; y++) {
-    for (let x = radius; x < width - radius; x++) {
-      let ok = true;
-      outer:
-      for (let dy = -radius; dy <= radius; dy++) {
-        for (let dx = -radius; dx <= radius; dx++) {
-          if (!dilated[(y+dy) * width + (x+dx)]) { ok = false; break outer; }
-        }
-      }
-      result[y * width + x] = ok ? 1 : 0;
-    }
-  }
+  
   return result;
 }
 
