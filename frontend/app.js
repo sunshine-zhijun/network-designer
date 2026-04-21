@@ -2401,22 +2401,39 @@ async function saveFloorplanToBackend(img) {
   }
   
   const imageData = img.src; // Base64 数据
+  const imageWidth = img.width;
+  const imageHeight = img.height;
 
   try {
-    const result = await apiPost('/floorplans', {
-      project_id: State.currentProjectId,
-      floor_id: State.currentFloorId,
-      image_data: imageData,
-      image_width: img.width,
-      image_height: img.height,
-      name: '户型图',
-      offset_x: 0,
-      offset_y: 0,
-      scale_x: 1,
-      scale_y: 1,
-      rotation: 0
-    });
-    console.log('[API] 户型图已保存到后端', result);
+    // 先检查该楼层是否已有户型图
+    const existing = await apiGet(`/floorplans?floor_id=${State.currentFloorId}`);
+    
+    if (existing && existing.code === 0 && existing.data && existing.data.length > 0) {
+      // 已有户型图，更新
+      const existingId = existing.data[0].id;
+      await apiPut(`/floorplans/${existingId}`, {
+        image_data: imageData,
+        image_width: imageWidth,
+        image_height: imageHeight,
+      });
+      console.log('[API] 户型图已更新:', existingId);
+    } else {
+      // 没有户型图，创建新的
+      const result = await apiPost('/floorplans', {
+        project_id: State.currentProjectId,
+        floor_id: State.currentFloorId,
+        image_data: imageData,
+        image_width: imageWidth,
+        image_height: imageHeight,
+        name: '户型图',
+        offset_x: 0,
+        offset_y: 0,
+        scale_x: 1,
+        scale_y: 1,
+        rotation: 0
+      });
+      console.log('[API] 户型图已创建:', result);
+    }
   } catch (e) {
     console.warn('[API] 户型图保存失败:', e.message);
   }

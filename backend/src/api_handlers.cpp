@@ -236,13 +236,8 @@ Response ApiRouter::handle(const Request& req) {
     if (path == "/api/floorplans" && req.method == "POST") {
         return handleCreateFloorplan(req);
     }
-    if (path.substr(0, 16) == "/api/floorplans/" && req.method == "PUT") {
-        std::string id = extractPathParam(path, "/api/floorplans/*");
-        return handleUpdateFloorplan(id, req);
-    }
-    if (path.substr(0, 16) == "/api/floorplans/" && req.method == "DELETE") {
-        std::string id = extractPathParam(path, "/api/floorplans/*");
-        return handleDeleteFloorplan(id);
+    if (path == "/api/floorplans" && req.method == "GET" && req.queryParams.count("floor_id")) {
+        return handleGetFloorplansByFloor(req.queryParams.at("floor_id"));
     }
     if (path == "/api/floorplans" && req.method == "GET" && req.queryParams.count("project_id")) {
         return handleGetFloorplans(req.queryParams.at("project_id"));
