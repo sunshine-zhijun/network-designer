@@ -102,8 +102,9 @@ function loadFromLocalStorage() {
 
 async function loadFromBackend() {
   const projectId = State.projectId || 'default';
-  
-  const result = await apiGet(`/projects/${projectId}/load`);
+
+  // 后端使用 /api/projects/${id}/load
+  const result = await apiGet(`/api/projects/${projectId}/load`);
   
   if (result && result.code === 0 && result.data) {
     console.log('[API] Loaded from backend');
@@ -239,9 +240,10 @@ async function saveToBackend() {
       m_per_px: State.scale_m_per_px,
     } : null,
   };
-  
-  const result = await apiPost(`/projects/${projectId}/save`, data);
-  
+
+  // 后端使用 /api/projects/${id}/save
+  const result = await apiPost(`/api/projects/${projectId}/save`, data);
+
   if (result && result.code === 0) {
     console.log('[API] Saved to backend');
     saveToLocalStorage();

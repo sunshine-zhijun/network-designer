@@ -306,6 +306,14 @@ function getCanvasPos(e) {
 // ============================================================
 // 后端通信
 // ============================================================
+
+// 获取带 project_id 的 API 路径
+function apiPath(path) {
+  const projectId = State.projectId || 'default';
+  const separator = path.includes('?') ? '&' : '?';
+  return `${path}${separator}project_id=${projectId}`;
+}
+
 async function apiGet(path) {
   try {
     const r = await fetch(API_BASE + path);
@@ -355,15 +363,27 @@ async function apiDelete(path) {
 }
 
 async function loadFromBackend() {
+  const projectId = State.projectId || 'default';
+
   const [walls, aps, scale] = await Promise.all([
-    apiGet('/walls'),
-    apiGet('/aps'),
-    apiGet('/scale'),
+    apiGet(`/walls?project_id=${projectId}`),
+    apiGet(`/devices?project_id=${projectId}`),
+    apiGet(`/scales?project_id=${projectId}`),
   ]);
-  if (walls) State.walls = walls.walls || [];
-  if (aps) State.aps = aps.aps || [];
-  if (links) State.links = links.links || [];
-  if (scale) State.scale_m_per_px = scale.scale_m_per_px;
+
+  // 后端返回格式: {"code":0,"message":"success","data":[...]}
+  // 需要从 data 字段提取数据
+  if (walls && walls.code === 0) {
+    State.walls = walls.data || [];
+  }
+  if (aps && aps.code === 0) {
+    // 后端返回的是 devices，前端用 aps
+    State.aps = aps.data || [];
+  }
+  if (scale && scale.code === 0 && scale.data && scale.data.length > 0) {
+    State.scale_m_per_px = parseFloat(scale.data[0].m_per_px) || 0.05;
+  }
+
   updateCountBadges();
   updateAPList();
   updateLinkList();
@@ -772,7 +792,7 @@ function onMouseUp(e) {
     
     if (State._apWasDragged) {
       // 真正拖拽了：更新位置，不弹属性面板
-      apiPut('/aps/' + moved.id, { x: moved.x, y: moved.y });
+      apiPut('/devices/' + moved.id, { x: moved.x, y: moved.y });
       requestHeatmapIfVisible();
     } else {
       // 只是点击：弹出属性面板
@@ -936,8 +956,12 @@ async function addWall(x1, y1, x2, y2) {
 
   // 同步后端（如果可用）
   if (BACKEND_AVAILABLE) {
-    const res = await apiPost('/walls', { x1, y1, x2, y2, material_id: State.currentMaterial });
-    if (res && res.id) newWall.id = res.id;
+    const res = await apiPost('/walls', {
+      project_id: State.projectId || 'default',
+      x1, y1, x2, y2,
+      material_id: State.currentMaterial
+    });
+    if (res && res.data && res.data[0]) newWall.id = res.data[0].id;
   }
   requestHeatmapIfVisible();
 }
@@ -1424,12 +1448,13 @@ async function placeDevice(wx, wy, product, deviceType) {
   
   // 同步后端
   if (BACKEND_AVAILABLE) {
-    const res = await apiPost('/aps', {
+    const res = await apiPost('/devices', {
+      project_id: State.projectId || 'default',
       x: wx, y: wy, type: deviceType, name: product.name,
       model: product.name, freq_ghz: newDevice.freq_ghz || 2.4,
       tx_power_dbm: power, bands: newDevice.bands,
     });
-    if (res && res.id) newDevice.id = res.id;
+    if (res && res.data && res.data[0]) newDevice.id = res.data[0].id;
   }
   
   requestHeatmapIfVisible();
@@ -1483,7 +1508,10 @@ function showGuideScaleInputModal(pxDist) {
     const realM = parseFloat(document.getElementById('modal-scale-value').value);
     if (realM > 0 && pxDist > 0) {
       State.scale_m_per_px = realM / pxDist;
-      await apiPost('/scale', { scale_m_per_px: State.scale_m_per_px });
+      await apiPost('/scales', {
+        project_id: State.projectId || 'default',
+        m_per_px: State.scale_m_per_px.toString()
+      });
       updateScaleDisplay();
       requestHeatmapIfVisible();
     }
@@ -1550,11 +1578,14 @@ function showScaleModal(pxDist) {
     const realM = parseFloat(document.getElementById('modal-scale-value').value);
     if (realM > 0 && pxDist > 0) {
       State.scale_m_per_px = realM / pxDist;
-      await apiPost('/scale', { scale_m_per_px: State.scale_m_per_px });
+      await apiPost('/scales', {
+        project_id: State.projectId || 'default',
+        m_per_px: State.scale_m_per_px.toString()
+      });
       updateScaleDisplay();
       requestHeatmapIfVisible();
     }
-    
+
     // 引导模式下完成后切回选择工具
     if (State.scaleGuideMode) {
       State.scaleGuideMode = false;
@@ -1576,7 +1607,10 @@ function applyScaleFromInputs() {
   const px = parseFloat(document.getElementById('scale-px').value);
   if (realM > 0 && px > 0) {
     State.scale_m_per_px = realM / px;
-    apiPost('/scale', { scale_m_per_px: State.scale_m_per_px });
+    apiPost('/scales', {
+      project_id: State.projectId || 'default',
+      m_per_px: State.scale_m_per_px.toString()
+    });
     updateScaleDisplay();
     requestHeatmapIfVisible();
   }
@@ -3012,7 +3046,7 @@ function attachAPPanelEvents(ap) {
           ap.bands = bands;
         }
 
-        apiPut('/aps/' + ap.id, {
+        apiPut('/devices/' + ap.id, {
           hostname: ap.hostname, model: ap.model, mount_type: ap.mount_type,
           freq_ghz: ap.freq_ghz, tx_power_dbm: ap.tx_power_dbm,
           enabled: ap.enabled, bands: ap.bands,
@@ -3057,7 +3091,7 @@ async function deleteAP(id) {
   updateAPList();
   updateLinkList();
   render();
-  await apiDelete('/aps/' + id);
+  await apiDelete('/devices/' + id);
   requestHeatmapIfVisible();
 }
 
