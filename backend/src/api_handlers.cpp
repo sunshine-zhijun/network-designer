@@ -21,67 +21,115 @@ std::string generateUUID() {
     return uuid;
 }
 
+// 解析JSON字符串值，正确处理转义字符
+static size_t skipJsonString(const std::string& s, size_t start) {
+    // start 指向 opening quote
+    size_t pos = start + 1;
+    while (pos < s.size()) {
+        if (s[pos] == '\\') {
+            pos += 2; // skip escape + escaped char
+        } else if (s[pos] == '"') {
+            return pos + 1; // return position after closing quote
+        } else {
+            pos++;
+        }
+    }
+    return pos;
+}
+
+// 解析JSON对象或数组，正确处理嵌套和字符串
+static size_t skipJsonContainer(const std::string& s, size_t start) {
+    char open = s[start];
+    char close = (open == '{') ? '}' : ']';
+    int depth = 1;
+    size_t pos = start + 1;
+    while (depth > 0 && pos < s.size()) {
+        if (s[pos] == '"') {
+            pos = skipJsonString(s, pos);
+        } else if (s[pos] == open) {
+            depth++;
+            pos++;
+        } else if (s[pos] == close) {
+            depth--;
+            pos++;
+            if (depth == 0) return pos;
+        } else {
+            pos++;
+        }
+    }
+    return pos;
+}
+
 std::map<std::string, std::string> parseJsonBody(const std::string& body) {
     std::map<std::string, std::string> result;
-    // 简单的JSON解析
     size_t pos = 0;
+    
+    // 跳过开头的空白和 {
+    while (pos < body.size() && (body[pos] == ' ' || body[pos] == '\t' || body[pos] == '\n' || body[pos] == '{')) {
+        if (body[pos] == '{') { pos++; break; }
+        pos++;
+    }
+    
     while (pos < body.size()) {
-        // 找 key（跳过空白）
-        while (pos < body.size() && body[pos] == ' ') pos++;
-        if (pos >= body.size() || body[pos] != '"') break;
+        // 跳过空白
+        while (pos < body.size() && (body[pos] == ' ' || body[pos] == '\t' || body[pos] == '\n' || body[pos] == '\r')) pos++;
         
-        size_t keyStart = pos + 1;
-        size_t keyEnd = body.find('"', keyStart);
-        if (keyEnd == std::string::npos) break;
-        std::string key = body.substr(keyStart, keyEnd - keyStart);
+        if (pos >= body.size()) break;
         
-        // 找 :
-        size_t colonPos = body.find(':', keyEnd + 1);
-        if (colonPos == std::string::npos) break;
+        // 检查结束
+        if (body[pos] == '}') break;
+        if (body[pos] == ',') { pos++; continue; }
         
-        // 找值开始位置（跳过空白和逗号）
-        size_t valueStart = colonPos + 1;
-        while (valueStart < body.size() && (body[valueStart] == ' ' || body[valueStart] == ',')) valueStart++;
-        if (valueStart >= body.size()) break;
+        // 必须是 key (字符串)
+        if (body[pos] != '"') break;
         
-        char valueChar = body[valueStart];
+        // 解析 key
+        size_t keyEnd = skipJsonString(body, pos);
+        std::string key = body.substr(pos + 1, keyEnd - pos - 2);
+        pos = keyEnd;
+        
+        // 跳过空白，找冒号
+        while (pos < body.size() && body[pos] != ':') pos++;
+        if (pos >= body.size()) break;
+        pos++; // skip colon
+        
+        // 跳过空白
+        while (pos < body.size() && (body[pos] == ' ' || body[pos] == '\t')) pos++;
+        if (pos >= body.size()) break;
+        
+        // 解析 value
         std::string value;
-        size_t valueEnd;
+        char c = body[pos];
         
-        if (valueChar == '"') {
-            // 字符串值
-            valueEnd = body.find('"', valueStart + 1);
-            if (valueEnd == std::string::npos) {
-                value = body.substr(valueStart + 1);
-                pos = body.size();
-            } else {
-                value = body.substr(valueStart + 1, valueEnd - valueStart - 1);
-                pos = valueEnd + 1;
-            }
-        } else if (valueChar == '{' || valueChar == '[') {
-            // 对象或数组，跳过匹配
-            int depth = 1;
-            valueEnd = valueStart + 1;
-            while (depth > 0 && valueEnd < body.size()) {
-                if (body[valueEnd] == '{' || body[valueEnd] == '[') depth++;
-                else if (body[valueEnd] == '}' || body[valueEnd] == ']') depth--;
-                valueEnd++;
-            }
-            value = body.substr(valueStart, valueEnd - valueStart);
+        if (c == '"') {
+            // 字符串
+            size_t valueEnd = skipJsonString(body, pos);
+            value = body.substr(pos + 1, valueEnd - pos - 2);
             pos = valueEnd;
-        } else if (valueChar == 'n' && valueStart + 4 <= body.size() && body.compare(valueStart, 4, "null") == 0) {
-            // null 值
+        } else if (c == '{' || c == '[') {
+            size_t valueEnd = skipJsonContainer(body, pos);
+            value = body.substr(pos, valueEnd - pos);
+            pos = valueEnd;
+        } else if (c == 'n' && body.compare(pos, 4, "null") == 0) {
             value = "";
-            pos = valueStart + 4;
+            pos += 4;
+        } else if (c == 't' && body.compare(pos, 4, "true") == 0) {
+            value = "true";
+            pos += 4;
+        } else if (c == 'f' && body.compare(pos, 5, "false") == 0) {
+            value = "false";
+            pos += 5;
         } else {
-            // 数字或布尔
-            valueEnd = valueStart;
-            while (valueEnd < body.size() && body[valueEnd] != ',' && body[valueEnd] != '}') valueEnd++;
-            value = body.substr(valueStart, valueEnd - valueStart);
+            // 数字或其他
+            size_t valueEnd = pos;
+            while (valueEnd < body.size() && body[valueEnd] != ',' && body[valueEnd] != '}' && body[valueEnd] != ' ' && body[valueEnd] != '\t') valueEnd++;
+            value = body.substr(pos, valueEnd - pos);
             pos = valueEnd;
         }
         
         result[key] = value;
+        
+        // 循环继续，跳过可能的逗号
     }
     
     return result;
