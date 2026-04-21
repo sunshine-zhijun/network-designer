@@ -99,19 +99,68 @@ cd backend
 build.bat
 ```
 
-**3. 启动服务**
+**3. 编译后端（原有 build.bat）**
 
 ```bash
-# 项目根目录
+cd backend
+build.bat
+```
+
+**4. Linux/macOS 编译**
+
+```bash
+# Ubuntu/Debian
+sudo apt install build-essential cmake libsqlite3-dev
+cd backend
+chmod +x build.sh
+./build.sh
+
+# macOS
+brew install cmake sqlite3
+cd backend
+./build.sh
+
+# 运行
+./build/bin/network_planner_server 8766
+```
+
+**5. 启动服务**
+
+```bash
+# Windows
 start.bat
 # 或手动启动
 cd backend
 network_planner_server.exe 8766
+
+# Linux/macOS
+./build/bin/network_planner_server 8766
 ```
 
 服务运行：
 - 前端 HTTP: `http://localhost:8080`
 - 后端 API: `http://localhost:8766`
+
+---
+
+### 交叉编译（可选）
+
+**在 Windows 上编译 Linux AMD64 版本：**
+
+1. 安装 MSYS2 + MinGW-w64 交叉编译工具链：
+   ```bash
+   pacman -S mingw-w64-x86_64-cross-binutils mingw-w64-x86_64-cross-gcc
+   ```
+
+2. 使用工具链文件编译：
+   ```bash
+   cd backend
+   mkdir build && cd build
+   cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake/linux_amd64_toolchain.cmake
+   cmake --build . --config Release
+   ```
+
+3. 将 `build/bin/network_planner_server` 复制到 Linux 服务器运行
 
 ---
 
