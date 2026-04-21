@@ -6,7 +6,7 @@
 <title>网规工具 - 无线网络规划系统</title>
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body style="background: #1a1d23;">
 <div id="app">
   <!-- 信号强度实时提示 -->
   <div id="signal-tooltip" class="signal-tooltip hidden">
@@ -18,19 +18,22 @@
   <header id="toolbar">
     <!-- 区域1: 文件操作 -->
     <div class="toolbar-left">
-      <div class="logo">📡 网规工具</div>
+      <div class="logo">📡 网规</div>
       <div class="toolbar-divider"></div>
       <button class="btn" id="btn-import" title="导入户型图">
-        <i>📁</i> 导入图纸
+        <span class="btn-icon">📁</span> 导入
       </button>
       <button class="btn" id="btn-clear-all" title="清空画布">
-        <i>🗑️</i> 清空
+        <span class="btn-icon">🗑️</span> 清空
       </button>
       <button class="btn btn-accent" id="btn-export" title="导出报告">
-        <i>💾</i> 导出
+        <span class="btn-icon">💾</span> 导出
       </button>
-      <button class="btn btn-inventory" id="btn-show-inventory" title="查看设备清单">
-        <i>📋</i> 设备清单 <span id="inventory-badge" class="badge hidden">0</span>
+      <button class="btn" id="btn-show-inventory" title="查看设备清单">
+        <span class="btn-icon">📋</span> 清单 <span id="inventory-badge" class="badge hidden">0</span>
+      </button>
+      <button class="btn btn-theme" id="btn-theme-toggle" title="切换主题">
+        <span class="theme-icon">🌙</span>
       </button>
     </div>
 
@@ -164,7 +167,7 @@
   <!-- 主体区域 -->
   <div id="main-area">
     <!-- 画布区域 -->
-    <div id="canvas-container">
+    <div id="canvas-container" style="background-color: #12151a;">
       <canvas id="main-canvas"></canvas>
       <!-- 信号强度图例 -->
       <div id="heatmap-legend" class="hidden">

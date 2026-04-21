@@ -421,6 +421,9 @@ function setupToolbar() {
   // 设备清单按钮
   document.getElementById('btn-show-inventory').addEventListener('click', showDeviceInventoryPanel);
 
+  // 主题切换按钮
+  document.getElementById('btn-theme-toggle').addEventListener('click', toggleTheme);
+
   // 热力图开关
   document.getElementById('btn-heatmap').addEventListener('click', toggleHeatmap);
 
@@ -450,10 +453,10 @@ function setupToolbar() {
   const layerMenu = document.getElementById('layer-dropdown-menu');
   layerBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    layerMenu.classList.toggle('open');
+    layerMenu.classList.toggle('show');
   });
   document.addEventListener('click', () => {
-    layerMenu.classList.remove('open');
+    layerMenu.classList.remove('show');
   });
 
   // 图层复选框
@@ -619,8 +622,8 @@ function onKeyDown(e) {
       State.linkPreviewEnd = null;
     }
     // 关闭下拉菜单
-    document.getElementById('wall-tool-menu').classList.remove('open');
-    document.getElementById('layer-dropdown-menu').classList.remove('open');
+    document.getElementById('wall-tool-menu').classList.remove('show');
+    document.getElementById('layer-dropdown-menu').classList.remove('show');
     render();
     return;
   }
@@ -3856,10 +3859,74 @@ function getCanvasPosFromWorld(worldX, worldY) {
 }
 
 // ============================================================
+// 主题管理
+// ============================================================
+function initTheme() {
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  setTheme(savedTheme);
+  // 页面加载时也设置body背景
+  document.body.style.background = savedTheme === 'light' ? '#f5f7fa' : '#1a1d23';
+}
+
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.body.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+  
+  // 设置 body 背景
+  document.body.style.background = theme === 'light' ? '#f5f7fa' : '#1a1d23';
+  
+  // 强制刷新画布背景
+  const canvas = document.getElementById('canvas-container');
+  if (canvas) {
+    canvas.style.backgroundColor = theme === 'light' ? '#fafbfc' : '#12151a';
+  }
+  
+  // 更新图层下拉菜单样式
+  const layerMenu = document.getElementById('layer-dropdown-menu');
+  if (layerMenu) {
+    if (theme === 'light') {
+      layerMenu.style.background = '#ffffff';
+      layerMenu.style.borderColor = '#d1d5db';
+      layerMenu.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)';
+    } else {
+      layerMenu.style.background = '#22262e';
+      layerMenu.style.borderColor = '#3a4050';
+      layerMenu.style.boxShadow = '0 4px 16px rgba(0,0,0,0.3)';
+    }
+  }
+  
+  // 更新图层选项样式
+  const layerOptions = document.querySelectorAll('.layer-option');
+  layerOptions.forEach(opt => {
+    if (theme === 'light') {
+      opt.style.color = '#1a1d23';
+      opt.style.background = 'transparent';
+    } else {
+      opt.style.color = '#e8e8e8';
+      opt.style.background = 'transparent';
+    }
+  });
+  
+  const icon = document.querySelector('.theme-icon');
+  if (icon) {
+    icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+  }
+}
+
+function toggleTheme() {
+  const current = document.body.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  setTheme(next);
+}
+
+// ============================================================
 // 启动
 // ============================================================
 function bootstrap() {
   console.log('[网规工具] 启动中...');
+  // 初始化主题
+  initTheme();
   // 初始化离屏热力图画布
   State.heatmapCanvas = document.createElement('canvas');
   init();
