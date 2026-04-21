@@ -6,6 +6,18 @@
 #include "server_config.h"
 #include <iostream>
 #include <sstream>
+#include <algorithm>
+#include <iterator>
+
+// 跨平台 join 函数
+inline std::string join(const std::vector<std::string>& vec, const std::string& delimiter) {
+    std::ostringstream result;
+    for (size_t i = 0; i < vec.size(); ++i) {
+        if (i > 0) result << delimiter;
+        result << vec[i];
+    }
+    return result.str();
+}
 
 // 静态成员初始化
 std::unique_ptr<Database> Database::instance_;

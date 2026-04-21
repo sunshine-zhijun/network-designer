@@ -83,7 +83,7 @@ std::string extractPathParam(const std::string& path, const std::string& pattern
 
 std::string rowsToJson(const std::vector<std::map<std::string, std::string>>& rows) {
     if (rows.empty()) return "[]";
-    
+
     std::ostringstream ss;
     ss << "[";
     for (size_t i = 0; i < rows.size(); i++) {
@@ -98,6 +98,21 @@ std::string rowsToJson(const std::vector<std::map<std::string, std::string>>& ro
         ss << "}";
     }
     ss << "]";
+    return ss.str();
+}
+
+std::string mapToJson(const std::map<std::string, std::string>& data) {
+    if (data.empty()) return "{}";
+
+    std::ostringstream ss;
+    ss << "{";
+    bool first = true;
+    for (const auto& pair : data) {
+        if (!first) ss << ",";
+        ss << "\"" << pair.first << "\":\"" << pair.second << "\"";
+        first = false;
+    }
+    ss << "}";
     return ss.str();
 }
 

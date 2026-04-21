@@ -35,11 +35,11 @@
     #include <winsock2.h>
     #include <ws2tcpip.h>
     #pragma comment(lib, "ws2_32.lib")
-    
+
     static WSADATA g_wsaData;
     static bool g_wsaInitialized = false;
-    
-    bool initWSA() {
+
+    static bool initWSA() {
         if (!g_wsaInitialized) {
             int result = WSAStartup(MAKEWORD(2, 2), &g_wsaData);
             if (result != 0) {
@@ -58,6 +58,11 @@
     typedef int SOCKET;
     #define INVALID_SOCKET (-1)
     #define SOCKET_ERROR (-1)
+    #define closesocket close
+
+    static bool initWSA() {
+        return true;  // Linux 不需要 WSA 初始化
+    }
 #endif
 
 // 全局变量
@@ -237,8 +242,8 @@ void stopServer() {
 void runServerLoop() {
     while (g_running) {
         sockaddr_in clientAddr;
-        int clientAddrLen = sizeof(clientAddr);
-        
+        socklen_t clientAddrLen = sizeof(clientAddr);
+
         SOCKET clientSocket = accept(g_serverSocket, (sockaddr*)&clientAddr, &clientAddrLen);
         if (clientSocket == INVALID_SOCKET) {
             if (g_running) {
