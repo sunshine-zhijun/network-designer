@@ -99,6 +99,7 @@ private:
     
     // 户型图
     Response handleGetFloorplans(const std::string& projectId);
+    Response handleGetFloorplansByFloor(const std::string& floorId);
     Response handleCreateFloorplan(const Request& req);
     Response handleUpdateFloorplan(const std::string& id, const Request& req);
     Response handleDeleteFloorplan(const std::string& id);

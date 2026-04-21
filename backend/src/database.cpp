@@ -227,6 +227,12 @@ DBResult Database::getFloorplans(const std::string& projectId) {
     return query(sql);
 }
 
+DBResult Database::getFloorplansByFloor(const std::string& floorId) {
+    std::string sql = "SELECT * FROM floorplans WHERE floor_id = '" + 
+        escapeString(floorId) + "' ORDER BY created_at DESC LIMIT 1";
+    return query(sql);
+}
+
 DBResult Database::getFloorplanById(const std::string& id) {
     std::string sql = "SELECT * FROM floorplans WHERE id = '" + escapeString(id) + "'";
     return query(sql);

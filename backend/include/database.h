@@ -60,6 +60,7 @@ public:
     
     // ========== 户型图操作 ==========
     DBResult getFloorplans(const std::string& projectId);
+    DBResult getFloorplansByFloor(const std::string& floorId);
     DBResult getFloorplanById(const std::string& id);
     DBResult createFloorplan(const std::map<std::string, std::string>& data);
     DBResult updateFloorplan(const std::string& id, const std::map<std::string, std::string>& data);

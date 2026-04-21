@@ -477,6 +477,12 @@ Response ApiRouter::handleGetFloorplans(const std::string& projectId) {
     return jsonSuccess(rowsToJson(result.rows));
 }
 
+Response ApiRouter::handleGetFloorplansByFloor(const std::string& floorId) {
+    auto result = db_.getFloorplansByFloor(floorId);
+    if (!result.success) return jsonError(500, result.error);
+    return jsonSuccess(rowsToJson(result.rows));
+}
+
 Response ApiRouter::handleCreateFloorplan(const Request& req) {
     auto data = parseJsonBody(req.body);
     data["id"] = generateUUID();

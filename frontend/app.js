@@ -571,11 +571,20 @@ async function loadFloorData() {
       length_m: parseFloat(l.length_m) || 0,
     }));
     
-    // 更新户型图
+    // 更新户型图（异步加载图片）
     if (data.floorplan && data.floorplan.length > 0) {
       const fp = data.floorplan[0];
       if (fp.image_data) {
-        loadFloorplanFromBase64(fp.image_data);
+        await loadFloorplanFromBase64(fp.image_data);
+      }
+    } else {
+      // 如果 load 接口没返回户型图，尝试通过 floor_id 查询
+      const fpResult = await apiGet(`/floorplans?floor_id=${State.currentFloorId}`);
+      if (fpResult && fpResult.code === 0 && fpResult.data && fpResult.data.length > 0) {
+        const fp = fpResult.data[0];
+        if (fp.image_data) {
+          await loadFloorplanFromBase64(fp.image_data);
+        }
       }
     }
     
@@ -2361,6 +2370,25 @@ function onFileImport(e) {
   } else {
     alert('不支持该格式，请使用 JPG/PNG/PDF/DXF');
   }
+}
+
+// 从 Base64 加载户型图
+function loadFloorplanFromBase64(base64Data) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      State.floorplanImage = img;
+      State.floorplanW = img.width;
+      State.floorplanH = img.height;
+      console.log('[加载] 户型图加载完成:', img.width, 'x', img.height);
+      resolve();
+    };
+    img.onerror = () => {
+      console.error('[加载] 户型图加载失败');
+      resolve();
+    };
+    img.src = base64Data;
+  });
 }
 
 function importImageFile(file) {
