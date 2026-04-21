@@ -183,7 +183,9 @@ bool sendOptionsResponse(SOCKET clientSocket) {
     ss << "\r\n";
     
     std::string response = ss.str();
+    std::cerr << "[DEBUG] OPTIONS response: " << response.size() << " bytes" << std::endl;
     int sent = send(clientSocket, response.c_str(), response.size(), 0);
+    std::cerr << "[DEBUG] OPTIONS send result: " << sent << std::endl;
     return sent > 0;
 }
 
