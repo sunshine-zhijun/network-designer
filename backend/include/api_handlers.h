@@ -69,13 +69,10 @@ private:
     
 public:
     ApiRouter(Database& database) : db_(database) {
-        initRoutes();
+        // 路由在 handle() 函数中直接处理
     }
     
     Response handle(const Request& req);
-    
-private:
-    void initRoutes();
     
     // 健康检查
     Response handleHealth();

@@ -5,7 +5,7 @@
 #
 # 使用方法:
 #   ./build.sh              # Release 构建
-#   ./build.sh Debug        # Debug 构建
+#   ./build.sh Debug       # Debug 构建
 #   ./build.sh clean        # 清理
 # =====================================================
 
@@ -34,11 +34,13 @@ check_dependencies() {
         missing+=("cmake")
     fi
 
-    # 检查 SQLite3
-    if ! pkg-config --exists sqlite3 2>/dev/null && ! ldconfig -p | grep -q libsqlite; then
-        # 可能已静态链接，检查 pkg-config
-        if ! command -v pkg-config &> /dev/null; then
-            missing+=("pkg-config (for SQLite3)")
+    # 检查 SQLite3 开发库
+    if ! ldconfig -p 2>/dev/null | grep -q libsqlite3; then
+        if ! pkg-config --exists sqlite3 2>/dev/null; then
+            # 最后检查头文件
+            if [ ! -f /usr/include/sqlite3.h ] && [ ! -f /usr/include/sqlite3/sqlite3.h ]; then
+                missing+=("sqlite3 development library")
+            fi
         fi
     fi
 
@@ -73,6 +75,7 @@ build() {
     echo ""
 
     # 创建构建目录
+    rm -rf build
     mkdir -p build
     cd build
 
@@ -87,15 +90,22 @@ build() {
     echo "[2/2] 编译..."
     cmake --build . -j$(nproc)
 
+    # 确认可执行文件存在
+    EXE_PATH=$(find . -name "network_planner_server" -type f 2>/dev/null | head -1)
+    if [ -z "$EXE_PATH" ]; then
+        echo "[警告] 未找到编译产物"
+        exit 1
+    fi
+
     echo ""
     echo "============================================"
     echo "  构建完成!"
     echo "============================================"
     echo ""
-    echo "可执行文件: build/bin/network_planner_server"
+    echo "可执行文件: $EXE_PATH"
     echo ""
-    echo "运行: ./build/bin/network_planner_server [端口]"
-    echo "示例: ./build/bin/network_planner_server 8766"
+    echo "运行: ./$EXE_PATH [端口]"
+    echo "示例: ./$EXE_PATH 8766"
 }
 
 # 主流程
