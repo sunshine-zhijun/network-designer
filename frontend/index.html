@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>网规工具 - 无线网络规划系统</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <!-- 信号强度实时提示 -->
+  <div id="signal-tooltip" class="signal-tooltip hidden">
+    <span id="signal-tooltip-rssi">-60 dBm</span>
+    <span id="signal-tooltip-level" class="signal-level signal-good">良好</span>
+  </div>
+
+  <!-- 顶部工具栏 -->
+  <header id="toolbar">
+    <!-- 区域1: 文件操作 -->
+    <div class="toolbar-left">
+      <div class="logo">📡 网规工具</div>
+      <div class="toolbar-divider"></div>
+      <button class="btn" id="btn-import" title="导入户型图">
+        <i>📁</i> 导入图纸
+      </button>
+      <button class="btn" id="btn-clear-all" title="清空画布">
+        <i>🗑️</i> 清空
+      </button>
+      <button class="btn btn-accent" id="btn-export" title="导出报告">
+        <i>💾</i> 导出
+      </button>
+      <button class="btn btn-inventory" id="btn-show-inventory" title="查看设备清单">
+        <i>📋</i> 设备清单 <span id="inventory-badge" class="badge hidden">0</span>
+      </button>
+    </div>
+
+    <!-- 区域2: 绘图功能 -->
+    <div class="toolbar-center">
+      <!-- 画墙/识别墙体 合并下拉 -->
+      <div class="tool-dropdown" id="wall-tool-dropdown">
+        <button class="tool-btn active" id="tool-wall-btn" data-tool="wall" title="墙体绘制 (W)">
+          <i>📐</i> 画墙 <span class="dropdown-arrow">▼</span>
+        </button>
+        <div class="tool-dropdown-menu" id="wall-tool-menu">
+          <div class="dropdown-item active" data-mode="manual" id="wall-mode-manual">
+            <span class="dropdown-icon">✏️</span>
+            <div class="dropdown-text">
+              <div class="dropdown-title">手动绘制</div>
+              <div class="dropdown-desc">点击两点绘制墙体</div>
+            </div>
+          </div>
+          <div class="dropdown-item" data-mode="detect" id="wall-mode-detect">
+            <span class="dropdown-icon">🔍</span>
+            <div class="dropdown-text">
+              <div class="dropdown-title">自动识别</div>
+              <div class="dropdown-desc">从户型图识别墙体</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 比例尺（悬停显示设置表单） -->
+      <div class="scale-tooltip-wrapper">
+        <button class="tool-btn" id="tool-scale" data-tool="scale" title="设置比例尺 (S)">
+          <i>📏</i> <span id="scale-display">5cm/px</span>
+        </button>
+        <div class="scale-tooltip" id="scale-tooltip">
+          <div class="scale-tooltip-title">📏 比例尺设置</div>
+          <div class="scale-form">
+            <div class="scale-form-row">
+              <label>实际距离</label>
+              <input type="number" id="scale-real" value="5" min="0.1" step="0.1"> m
+            </div>
+            <div class="scale-form-row">
+              <label>像素距离</label>
+              <input type="number" id="scale-px" value="100" min="1"> px
+            </div>
+            <div class="scale-result">
+              1px = <span id="scale-value">5.00</span> cm
+            </div>
+            <button class="btn btn-primary btn-small" id="btn-apply-scale">应用</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 布点 -->
+      <button class="tool-btn" id="tool-place" data-tool="place" title="布点 (P)">
+        <i>📍</i> 布点
+      </button>
+
+      <!-- 布线 -->
+      <button class="tool-btn" id="btn-link" data-tool="link" title="绘制网线连接 (L)">
+        <i>🔗</i> 布线
+      </button>
+
+      <!-- 选择 -->
+      <button class="tool-btn" id="tool-select" data-tool="select" title="选择/移动 (V)">
+        <i>↖️</i> 选择
+      </button>
+
+      <!-- 撤回/复原按钮组 -->
+      <div class="toolbar-group undo-redo-group">
+        <button class="btn" id="btn-undo" title="撤回上一步 (Ctrl+Z)">↩️ 撤回</button>
+        <button class="btn" id="btn-redo" title="还原下一步 (Ctrl+Y)">↪️ 复原</button>
+      </div>
+    </div>
+
+    <!-- 区域3: 视图控制 -->
+    <div class="toolbar-right">
+      <!-- 图层下拉 -->
+      <div class="layer-dropdown">
+        <button class="btn" id="btn-layer-toggle">
+          <i>📋</i> 图层 <span class="dropdown-arrow">▼</span>
+        </button>
+        <div class="layer-dropdown-menu" id="layer-dropdown-menu">
+          <label class="layer-option">
+            <input type="checkbox" id="layer-fp" checked>
+            <span>户型图</span>
+          </label>
+          <label class="layer-option">
+            <input type="checkbox" id="layer-walls" checked>
+            <span>墙体 (<span id="wall-count">0</span>)</span>
+          </label>
+          <label class="layer-option">
+            <input type="checkbox" id="layer-aps" checked>
+            <span>AP设备 (<span id="ap-count">0</span>)</span>
+          </label>
+          <label class="layer-option">
+            <input type="checkbox" id="layer-heatmap">
+            <span>信号热力图</span>
+          </label>
+          <label class="layer-option">
+            <input type="checkbox" id="layer-links" checked>
+            <span>网线连接 (<span id="link-count">0</span>)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 热力图开关 -->
+      <button class="btn" id="btn-heatmap" title="显示/隐藏热力图">
+        <i>🌡️</i> 热力图
+      </button>
+      <select id="heatmap-freq-select" class="freq-select">
+        <option value="all">全部频段</option>
+        <option value="2.4">2.4 GHz</option>
+        <option value="5">5 GHz</option>
+        <option value="6">6 GHz</option>
+      </select>
+
+      <!-- 视图缩放 -->
+      <div class="toolbar-group">
+        <button class="btn" id="btn-zoom-in">🔍+</button>
+        <button class="btn" id="btn-zoom-out">🔍-</button>
+        <button class="btn" id="btn-zoom-fit">⊡</button>
+      </div>
+      <div class="zoom-display" id="zoom-display">100%</div>
+    </div>
+  </header>
+
+  <!-- 主体区域 -->
+  <div id="main-area">
+    <!-- 画布区域 -->
+    <div id="canvas-container">
+      <canvas id="main-canvas"></canvas>
+      <!-- 信号强度图例 -->
+      <div id="heatmap-legend" class="hidden">
+        <div class="legend-title">信号强度 (dBm)</div>
+        <div class="legend-bar"></div>
+        <div class="legend-labels">
+          <span>-30 优</span><span>-55 良</span><span>-65 一般</span><span>-75 差</span><span>-90 极差</span>
+        </div>
+      </div>
+      <!-- 状态栏 -->
+      <div id="status-bar">
+        <span id="status-coords">X: 0, Y: 0</span>
+        <span id="status-msg">就绪 — 导入户型图或开始绘制</span>
+        <span id="status-scale">比例: 5cm/px</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧属性面板 -->
+  <aside id="right-panel">
+    <div class="panel-header">
+      <div class="panel-title" id="right-panel-title">属性配置</div>
+      <button class="close-btn" id="btn-close-right-panel">✕</button>
+    </div>
+    <div class="panel-content">
+      <!-- 已放置设备列表（布点后自动显示） -->
+      <div class="panel-section" id="device-list-section">
+        <div class="section-title">📍 已放置设备 (<span id="ap-count-right">0</span>)</div>
+        <div id="ap-list"></div>
+      </div>
+      <!-- 网线连接列表 -->
+      <div class="panel-section" id="link-list-section">
+        <div class="section-title">🔗 网线连接 (<span id="link-count-panel">0</span>)</div>
+        <div id="link-list"></div>
+      </div>
+      <!-- 设备清单汇总 -->
+      <div class="panel-section" id="device-inventory-section">
+        <div class="section-title">📋 设备清单</div>
+        <div id="device-inventory"></div>
+        <button class="btn btn-small btn-export-inventory" id="btn-export-inventory">📥 导出清单</button>
+      </div>
+      <!-- 选中元素属性 -->
+      <div id="right-panel-content">
+        <div class="empty-hint">点击选择元素查看/编辑属性</div>
+      </div>
+    </div>
+</aside>
+
+  <!-- 画墙模式：右侧墙体列表 -->
+  <aside id="wall-list-panel">
+    <div class="panel-header">
+      <div class="panel-title">🧱 墙体列表</div>
+      <button class="close-btn" id="btn-close-wall-panel">✕</button>
+    </div>
+    <div class="panel-content">
+      <div id="wall-list-content">
+        <!-- 材质选择 -->
+        <div class="wall-material-section">
+          <div class="section-title">当前材质</div>
+          <div id="material-list-compact" class="material-list-compact">
+            <!-- 动态生成 -->
+          </div>
+        </div>
+        <!-- 墙体列表 -->
+        <div class="wall-items-section">
+          <div class="section-title">已有墙体 (<span id="wall-list-count">0</span>)</div>
+          <div id="wall-items-list" class="wall-items-list">
+            <!-- 动态生成 -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 悬浮信号分析面板 - 三档覆盖率横条图 -->
+  <div id="signal-panel-mini">
+    <div class="signal-mini-header" id="signal-panel-drag">
+      <span class="signal-mini-title">📊 信号覆盖分析</span>
+      <button class="signal-mini-close" id="btn-close-signal">✕</button>
+    </div>
+    <div class="signal-mini-body">
+      <!-- 覆盖率横条图 -->
+      <div class="coverage-bar-wrapper">
+        <div class="coverage-bar">
+          <div class="coverage-segment cov-poor" id="cov-bar-poor"></div>
+          <div class="coverage-segment cov-fair" id="cov-bar-fair"></div>
+          <div class="coverage-segment cov-good" id="cov-bar-good"></div>
+        </div>
+        <div class="coverage-labels">
+          <span class="cov-label-poor">差 &lt;-75</span>
+          <span class="cov-label-fair">一般 -75~60</span>
+          <span class="cov-label-good">好 &gt;-60</span>
+        </div>
+      </div>
+      
+      <!-- 详细数据 -->
+      <div class="coverage-details">
+        <div class="cov-detail-row">
+          <span class="cov-dot cov-dot-poor"></span>
+          <span class="cov-detail-label">差 (<mark>-75 dBm</mark>)</span>
+          <span class="cov-detail-pct" id="cov-poor-pct">0%</span>
+        </div>
+        <div class="cov-detail-row">
+          <span class="cov-dot cov-dot-fair"></span>
+          <span class="cov-detail-label">一般 (<mark>-75 ~ -60 dBm</mark>)</span>
+          <span class="cov-detail-pct" id="cov-fair-pct">0%</span>
+        </div>
+        <div class="cov-detail-row">
+          <span class="cov-dot cov-dot-good"></span>
+          <span class="cov-detail-label">好 (<mark>> -60 dBm</mark>)</span>
+          <span class="cov-detail-pct" id="cov-good-pct">0%</span>
+        </div>
+      </div>
+    </div>
+    <div class="signal-mini-footer">
+      <div class="cov-summary" id="cov-summary">无数据</div>
+      <button class="btn btn-primary btn-small signal-mini-btn" id="btn-analyze">🔄 重新计算</button>
+    </div>
+  </div>
+
+  <!-- 布点产品选择面板（悬浮底部） -->
+  <div id="product-panel" class="hidden">
+    <div class="product-header">
+      <div class="product-title">📶 选择设备</div>
+      <button class="close-btn" id="btn-close-products">✕</button>
+    </div>
+    <div class="product-categories">
+      <div class="product-category active" data-category="ap">
+        <span class="cat-icon">📶</span> AP
+      </div>
+      <div class="product-category" data-category="switch">
+        <span class="cat-icon">🔌</span> 交换机
+      </div>
+      <div class="product-category" data-category="router">
+        <span class="cat-icon">🌐</span> 路由器
+      </div>
+    </div>
+    <div class="product-list" id="product-list"></div>
+    <div class="product-hint">💡 选择产品后点击图纸放置 | 右键取消</div>
+  </div>
+
+</div>
+
+<!-- 文件导入input -->
+<input type="file" id="file-input" accept=".jpg,.jpeg,.png,.pdf,.dxf,.svg,.bmp,.gif,.webp" style="display:none">
+
+<!-- 比例尺设置对话框 -->
+<div id="modal-scale" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-title">📏 设置比例尺</div>
+    <p>请在画布上点击两点，然后输入实际距离</p>
+    <div class="form-row">
+      <label>实际距离 (米)</label>
+      <input type="number" id="modal-scale-value" value="5" min="0.1" step="0.1">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="modal-scale-confirm">确定</button>
+      <button class="btn" id="modal-scale-cancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 导入后立即弹出比例尺设置（引导模式） -->
+<div id="modal-scale-guide" class="modal hidden">
+  <div class="modal-content modal-scale-guide">
+    <div class="modal-title">📏 设置比例尺</div>
+    <p class="guide-desc">请在户型图上点击<b>两点</b>作为参考（建议选择已标注尺寸的位置，如房门宽度、窗户长度等），然后输入实际距离。</p>
+    <div class="guide-hint">
+      <div class="hint-step">
+        <span class="hint-num">①</span>
+        <span>在图纸上点击一个参考点</span>
+      </div>
+      <div class="hint-step">
+        <span class="hint-num">②</span>
+        <span>再点击第二个参考点</span>
+      </div>
+      <div class="hint-step">
+        <span class="hint-num">③</span>
+        <span>输入两点的实际距离（米）</span>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>两点实际距离</label>
+      <input type="number" id="guide-scale-value" value="3" min="0.1" step="0.1" placeholder="请输入实际距离">
+      <span class="unit">米</span>
+    </div>
+    <div class="guide-tips">
+      💡 <b>提示：</b>可利用图上标注的尺寸（如"宽2.1米"、"3米"等）作为参考
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="modal-scale-guide-cancel">跳过（使用默认比例）</button>
+      <button class="btn btn-primary" id="modal-scale-guide-confirm">下一步：点击图纸</button>
+    </div>
+  </div>
+</div>
+
+<!-- 墙体识别进度 -->
+<div id="modal-detect" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-title">🔍 墙体识别</div>
+    <p id="detect-msg">正在分析户型图...</p>
+    <div class="progress-bar">
+      <div class="progress-fill" id="detect-progress"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="offline_engine.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
