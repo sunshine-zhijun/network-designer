@@ -12,24 +12,24 @@ const BACKEND_PORT = '8766';
 const API_BASE = `http://${BACKEND_HOST}:${BACKEND_PORT}/api`;
 
 // 后端可用性检测（如果后端不可用，将自动降级到本地存储）
-let BACKEND_AVAILABLE = true;
+let BACKEND_AVAILABLE = false; // 默认关闭，检测到后端后再开启
 
 // 启动时检测后端可用性
 (async function checkBackend() {
   try {
     const response = await fetch(`${API_BASE}/health`, {
       method: 'GET',
-      signal: AbortSignal.timeout(2000)
+      signal: AbortSignal.timeout(3000)
     });
-    BACKEND_AVAILABLE = response.ok;
-    if (BACKEND_AVAILABLE) {
-      console.log('[API] Backend connected:', API_BASE);
+    if (response.ok) {
+      BACKEND_AVAILABLE = true;
+      console.log('[API] ✅ Backend connected:', API_BASE);
     } else {
-      console.log('[API] Backend not available, using offline mode');
+      console.log('[API] ⚠️  Backend returned error:', response.status);
     }
   } catch (e) {
-    BACKEND_AVAILABLE = false;
-    console.log('[API] Backend not available, using offline mode');
+    console.log('[API] ❌ Backend not available, using offline mode');
+    console.log('[API]    Error:', e.message);
   }
 })();
 
@@ -362,34 +362,7 @@ async function apiDelete(path) {
   }
 }
 
-async function loadFromBackend() {
-  const projectId = State.projectId || 'default';
-
-  const [walls, aps, scale] = await Promise.all([
-    apiGet(`/walls?project_id=${projectId}`),
-    apiGet(`/devices?project_id=${projectId}`),
-    apiGet(`/scales?project_id=${projectId}`),
-  ]);
-
-  // 后端返回格式: {"code":0,"message":"success","data":[...]}
-  // 需要从 data 字段提取数据
-  if (walls && walls.code === 0) {
-    State.walls = walls.data || [];
-  }
-  if (aps && aps.code === 0) {
-    // 后端返回的是 devices，前端用 aps
-    State.aps = aps.data || [];
-  }
-  if (scale && scale.code === 0 && scale.data && scale.data.length > 0) {
-    State.scale_m_per_px = parseFloat(scale.data[0].m_per_px) || 0.05;
-  }
-
-  updateCountBadges();
-  updateAPList();
-  updateLinkList();
-  updateScaleDisplay();
-  render();
-}
+// loadFromBackend() 在 data_service.js 中定义，会被调用来加载后端数据
 
 // ============================================================
 // 工具栏设置
@@ -956,12 +929,23 @@ async function addWall(x1, y1, x2, y2) {
 
   // 同步后端（如果可用）
   if (BACKEND_AVAILABLE) {
-    const res = await apiPost('/walls', {
-      project_id: State.projectId || 'default',
-      x1, y1, x2, y2,
-      material_id: State.currentMaterial
-    });
-    if (res && res.data && res.data[0]) newWall.id = res.data[0].id;
+    try {
+      const res = await apiPost('/walls', {
+        project_id: State.projectId || 'default',
+        x1: x1.toString(),
+        y1: y1.toString(),
+        x2: x2.toString(),
+        y2: y2.toString(),
+        thickness: (MATERIALS[State.currentMaterial]?.thickness || 10).toString(),
+        material: State.currentMaterial,
+        color: MATERIALS[State.currentMaterial]?.color || null,
+        elevation: '0'
+      });
+      console.log('[API] 墙体创建响应:', res);
+      if (res && res.data && res.data[0]) newWall.id = res.data[0].id;
+    } catch (e) {
+      console.error('[API] 墙体创建失败:', e);
+    }
   }
   requestHeatmapIfVisible();
 }
@@ -1448,13 +1432,23 @@ async function placeDevice(wx, wy, product, deviceType) {
   
   // 同步后端
   if (BACKEND_AVAILABLE) {
-    const res = await apiPost('/devices', {
-      project_id: State.projectId || 'default',
-      x: wx, y: wy, type: deviceType, name: product.name,
-      model: product.name, freq_ghz: newDevice.freq_ghz || 2.4,
-      tx_power_dbm: power, bands: newDevice.bands,
-    });
-    if (res && res.data && res.data[0]) newDevice.id = res.data[0].id;
+    try {
+      const res = await apiPost('/devices', {
+        project_id: State.projectId || 'default',
+        x: wx.toString(),
+        y: wy.toString(),
+        device_type: deviceType,
+        name: product.name,
+        model: product.name,
+        freq_bands: (newDevice.freqBands || ['2.4', '5']).join(','),
+        power_dbm: power.toString(),
+        angle: '0'
+      });
+      console.log('[API] 设备创建响应:', res);
+      if (res && res.data && res.data[0]) newDevice.id = res.data[0].id;
+    } catch (e) {
+      console.error('[API] 设备创建失败:', e);
+    }
   }
   
   requestHeatmapIfVisible();
@@ -1989,7 +1983,12 @@ function importImageFile(file) {
       console.log('[导入] 调用 render()');
       render();
       console.log('[导入] render() 完成');
-      
+
+      // 保存户型图到后端
+      if (BACKEND_AVAILABLE) {
+        saveFloorplanToBackend(img);
+      }
+
       // ✅ 立即弹出比例尺设置对话框
       setTimeout(() => showScaleSetupModal(), 100);
     };
@@ -1997,6 +1996,25 @@ function importImageFile(file) {
     img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+// 保存户型图到后端
+async function saveFloorplanToBackend(img) {
+  const projectId = State.projectId || 'default';
+  const imageData = img.src; // Base64 数据
+
+  try {
+    await apiPost('/floorplans', {
+      project_id: projectId,
+      image_data: imageData,
+      image_width: img.width,
+      image_height: img.height,
+      name: '户型图'
+    });
+    console.log('[API] 户型图已保存到后端');
+  } catch (e) {
+    console.warn('[API] 户型图保存失败:', e.message);
+  }
 }
 
 function importPDF(file) {
