@@ -23,50 +23,65 @@ std::string generateUUID() {
 
 std::map<std::string, std::string> parseJsonBody(const std::string& body) {
     std::map<std::string, std::string> result;
-    // 简单的JSON解析（生产环境建议用RapidJSON）
+    // 简单的JSON解析
     size_t pos = 0;
     while (pos < body.size()) {
-        // 找 key
-        size_t keyStart = body.find('"', pos);
-        if (keyStart == std::string::npos) break;
-        size_t keyEnd = body.find('"', keyStart + 1);
+        // 找 key（跳过空白）
+        while (pos < body.size() && body[pos] == ' ') pos++;
+        if (pos >= body.size() || body[pos] != '"') break;
+        
+        size_t keyStart = pos + 1;
+        size_t keyEnd = body.find('"', keyStart);
         if (keyEnd == std::string::npos) break;
-        std::string key = body.substr(keyStart + 1, keyEnd - keyStart - 1);
+        std::string key = body.substr(keyStart, keyEnd - keyStart);
         
         // 找 :
-        size_t colonPos = body.find(':', keyEnd);
+        size_t colonPos = body.find(':', keyEnd + 1);
         if (colonPos == std::string::npos) break;
         
-        // 找值
+        // 找值开始位置（跳过空白和逗号）
         size_t valueStart = colonPos + 1;
         while (valueStart < body.size() && (body[valueStart] == ' ' || body[valueStart] == ',')) valueStart++;
+        if (valueStart >= body.size()) break;
         
         char valueChar = body[valueStart];
         std::string value;
+        size_t valueEnd;
         
         if (valueChar == '"') {
             // 字符串值
-            size_t valueEnd = body.find('"', valueStart + 1);
-            value = body.substr(valueStart + 1, valueEnd - valueStart - 1);
+            valueEnd = body.find('"', valueStart + 1);
+            if (valueEnd == std::string::npos) {
+                value = body.substr(valueStart + 1);
+                pos = body.size();
+            } else {
+                value = body.substr(valueStart + 1, valueEnd - valueStart - 1);
+                pos = valueEnd + 1;
+            }
         } else if (valueChar == '{' || valueChar == '[') {
             // 对象或数组，跳过匹配
             int depth = 1;
-            size_t valueEnd = valueStart + 1;
+            valueEnd = valueStart + 1;
             while (depth > 0 && valueEnd < body.size()) {
                 if (body[valueEnd] == '{' || body[valueEnd] == '[') depth++;
                 else if (body[valueEnd] == '}' || body[valueEnd] == ']') depth--;
                 valueEnd++;
             }
             value = body.substr(valueStart, valueEnd - valueStart);
+            pos = valueEnd;
+        } else if (valueChar == 'n' && valueStart + 4 <= body.size() && body.compare(valueStart, 4, "null") == 0) {
+            // null 值
+            value = "";
+            pos = valueStart + 4;
         } else {
             // 数字或布尔
-            size_t valueEnd = valueStart;
+            valueEnd = valueStart;
             while (valueEnd < body.size() && body[valueEnd] != ',' && body[valueEnd] != '}') valueEnd++;
             value = body.substr(valueStart, valueEnd - valueStart);
+            pos = valueEnd;
         }
         
         result[key] = value;
-        pos = valueStart + value.size();
     }
     
     return result;
