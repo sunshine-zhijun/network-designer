@@ -200,11 +200,12 @@ DBResult Database::createFloorplan(const std::map<std::string, std::string>& dat
     
     std::string sql = "INSERT INTO floorplans (id, project_id, name, image_data, " +
         std::string("image_width, image_height, offset_x, offset_y, scale_x, scale_y, rotation) VALUES ('") +
-        escapeString(data.at("id")) + "', '" +
-        escapeString(data.at("project_id")) + "', '" +
-        escapeString(data.count("name") ? data.at("name") : "") + "', '" +
-        escapeString(data.at("image_data")) + "', " +
-        data.at("image_width") + ", " + data.at("image_height") + ", " +
+        escapeString(data.count("id") ? data.at("id") : "") + "', '" +
+        escapeString(data.count("project_id") ? data.at("project_id") : "default") + "', '" +
+        escapeString(data.count("name") ? data.at("name") : "户型图") + "', '" +
+        escapeString(data.count("image_data") ? data.at("image_data") : "") + "', " +
+        (data.count("image_width") ? data.at("image_width") : "0") + ", " +
+        (data.count("image_height") ? data.at("image_height") : "0") + ", " +
         offset_x + ", " + offset_y + ", " +
         scale_x + ", " + scale_y + ", " +
         rotation + ")";
@@ -248,14 +249,18 @@ DBResult Database::createWall(const std::map<std::string, std::string>& data) {
     std::string thickness = data.count("thickness") ? data.at("thickness") : "10";
     std::string elevation = data.count("elevation") ? data.at("elevation") : "0";
     std::string material = data.count("material") ? data.at("material") : "brick";
+    std::string x1 = data.count("x1") ? data.at("x1") : "0";
+    std::string y1 = data.count("y1") ? data.at("y1") : "0";
+    std::string x2 = data.count("x2") ? data.at("x2") : "0";
+    std::string y2 = data.count("y2") ? data.at("y2") : "0";
     
     std::string sql = "INSERT INTO walls (id, project_id, floorplan_id, x1, y1, x2, y2, " +
         std::string("thickness, material, color, elevation) VALUES ('") +
-        escapeString(data.at("id")) + "', '" +
-        escapeString(data.at("project_id")) + "', " +
+        escapeString(data.count("id") ? data.at("id") : "") + "', '" +
+        escapeString(data.count("project_id") ? data.at("project_id") : "default") + "', " +
         (data.count("floorplan_id") ? "'" + escapeString(data.at("floorplan_id")) + "'" : "NULL") + ", " +
-        data.at("x1") + ", " + data.at("y1") + ", " +
-        data.at("x2") + ", " + data.at("y2") + ", " +
+        x1 + ", " + y1 + ", " +
+        x2 + ", " + y2 + ", " +
         thickness + ", '" + escapeString(material) + "', " +
         (data.count("color") ? "'" + escapeString(data.at("color")) + "'" : "NULL") + ", " +
         elevation + ")";
@@ -319,15 +324,17 @@ DBResult Database::createDevice(const std::map<std::string, std::string>& data) 
     // 使用默认值，避免 map::at 崩溃
     std::string power_dbm = data.count("power_dbm") ? data.at("power_dbm") : "20";
     std::string angle = data.count("angle") ? data.at("angle") : "0";
+    std::string x = data.count("x") ? data.at("x") : "0";
+    std::string y = data.count("y") ? data.at("y") : "0";
     
     std::string sql = "INSERT INTO devices (id, project_id, device_type, model, name, x, y, " +
         std::string("freq_bands, power_dbm, angle) VALUES ('") +
-        escapeString(data.at("id")) + "', '" +
-        escapeString(data.at("project_id")) + "', '" +
-        escapeString(data.at("device_type")) + "', " +
+        escapeString(data.count("id") ? data.at("id") : "") + "', '" +
+        escapeString(data.count("project_id") ? data.at("project_id") : "default") + "', '" +
+        escapeString(data.count("device_type") ? data.at("device_type") : "ap") + "', " +
         (data.count("model") ? "'" + escapeString(data.at("model")) + "'" : "NULL") + ", " +
         (data.count("name") ? "'" + escapeString(data.at("name")) + "'" : "NULL") + ", " +
-        data.at("x") + ", " + data.at("y") + ", " +
+        x + ", " + y + ", " +
         (data.count("freq_bands") ? "'" + escapeString(data.at("freq_bands")) + "'" : "'2.4,5'") + ", " +
         power_dbm + ", " + angle + ")";
     return execute(sql);
@@ -373,10 +380,10 @@ DBResult Database::getLinkById(const std::string& id) {
 DBResult Database::createLink(const std::map<std::string, std::string>& data) {
     std::string sql = "INSERT INTO links (id, project_id, from_device_id, to_device_id, " +
         std::string("route_points, cable_type, length_m) VALUES ('") +
-        escapeString(data.at("id")) + "', '" +
-        escapeString(data.at("project_id")) + "', '" +
-        escapeString(data.at("from_device_id")) + "', '" +
-        escapeString(data.at("to_device_id")) + "', " +
+        escapeString(data.count("id") ? data.at("id") : "") + "', '" +
+        escapeString(data.count("project_id") ? data.at("project_id") : "default") + "', '" +
+        escapeString(data.count("from_device_id") ? data.at("from_device_id") : "") + "', '" +
+        escapeString(data.count("to_device_id") ? data.at("to_device_id") : "") + "', " +
         (data.count("route_points") ? "'" + escapeString(data.at("route_points")) + "'" : "NULL") + ", " +
         (data.count("cable_type") ? "'" + escapeString(data.at("cable_type")) + "'" : "'CAT6'") + ", " +
         (data.count("length_m") ? data.at("length_m") : "NULL") + ")";
@@ -417,18 +424,28 @@ DBResult Database::getScale(const std::string& projectId) {
 
 DBResult Database::createOrUpdateScale(const std::map<std::string, std::string>& data) {
     // 先删除旧的
+    std::string projectId = data.count("project_id") ? data.at("project_id") : "default";
     std::string delSql = "DELETE FROM scales WHERE project_id = '" + 
-        escapeString(data.at("project_id")) + "'";
+        escapeString(projectId) + "'";
     execute(delSql);
+    
+    // 获取字段，提供默认值
+    std::string id = data.count("id") ? data.at("id") : "";
+    std::string x1 = data.count("x1") ? data.at("x1") : "0";
+    std::string y1 = data.count("y1") ? data.at("y1") : "0";
+    std::string x2 = data.count("x2") ? data.at("x2") : "0";
+    std::string y2 = data.count("y2") ? data.at("y2") : "0";
+    std::string realDistanceCm = data.count("real_distance_cm") ? data.at("real_distance_cm") : "0";
+    std::string mPerPx = data.count("m_per_px") ? data.at("m_per_px") : "0.05";
     
     // 再插入新的
     std::string sql = "INSERT INTO scales (id, project_id, x1, y1, x2, y2, " +
         std::string("real_distance_cm, m_per_px) VALUES ('") +
-        escapeString(data.at("id")) + "', '" +
-        escapeString(data.at("project_id")) + "', " +
-        data.at("x1") + ", " + data.at("y1") + ", " +
-        data.at("x2") + ", " + data.at("y2") + ", " +
-        data.at("real_distance_cm") + ", " + data.at("m_per_px") + ")";
+        escapeString(id) + "', '" +
+        escapeString(projectId) + "', " +
+        x1 + ", " + y1 + ", " +
+        x2 + ", " + y2 + ", " +
+        realDistanceCm + ", " + mPerPx + ")";
     return execute(sql);
 }
 
