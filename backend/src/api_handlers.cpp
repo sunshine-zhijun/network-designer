@@ -354,11 +354,29 @@ Response ApiRouter::handleGetWalls(const std::string& projectId) {
 }
 
 Response ApiRouter::handleCreateWall(const Request& req) {
+    // 调试输出原始请求体
+    std::cerr << "[DEBUG] handleCreateWall body: " << req.body << std::endl;
+    
     auto data = parseJsonBody(req.body);
+    
+    // 调试输出解析结果
+    std::cerr << "[DEBUG] parseJsonBody result: ";
+    for (const auto& p : data) {
+        std::cerr << p.first << "=" << p.second << ", ";
+    }
+    std::cerr << std::endl;
+    
+    if (!data.count("x1") || !data.count("y1") || !data.count("x2") || !data.count("y2")) {
+        return jsonError(400, "Missing required fields: x1, y1, x2, y2");
+    }
+    
     data["id"] = generateUUID();
     
     auto result = db_.createWall(data);
-    if (!result.success) return jsonError(500, result.error);
+    if (!result.success) {
+        std::cerr << "[ERROR] createWall failed: " << result.error << std::endl;
+        return jsonError(500, result.error);
+    }
     
     auto wall = db_.getWallById(data["id"]);
     return jsonSuccess(rowsToJson(wall.rows));
