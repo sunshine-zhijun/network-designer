@@ -136,9 +136,15 @@ std::map<std::string, std::string> parseJsonBody(const std::string& body) {
 }
 
 std::string extractPathParam(const std::string& path, const std::string& pattern) {
-    // 简化实现，假设pattern是 "/api/projects/*" 格式
+    // 找最后一个斜杠（忽略末尾可能的 /load 等路径）
+    // 对于 /api/floors/UUID/load，应该提取 UUID 而不是 load
     size_t lastSlash = path.rfind('/');
-    if (lastSlash != std::string::npos) {
+    if (lastSlash != std::string::npos && lastSlash > 0) {
+        // 再找倒数第二个斜杠，取中间的部分
+        size_t prevSlash = path.rfind('/', lastSlash - 1);
+        if (prevSlash != std::string::npos) {
+            return path.substr(prevSlash + 1, lastSlash - prevSlash - 1);
+        }
         return path.substr(lastSlash + 1);
     }
     return "";

@@ -519,6 +519,8 @@ function updateToolbarState() {
 
 // 加载当前楼层数据
 async function loadFloorData() {
+  console.log('[loadFloorData] State.currentFloorId:', State.currentFloorId);
+  
   if (!State.currentFloorId) {
     // 清空当前数据
     State.walls = [];
@@ -532,6 +534,7 @@ async function loadFloorData() {
   
   // 从后端加载该楼层数据
   const result = await apiGet(`/floors/${State.currentFloorId}/load`);
+  console.log('[loadFloorData] API result:', result);
   if (result && result.code === 0) {
     const data = result.data;
     
@@ -700,7 +703,10 @@ async function createNewFloor() {
   const name = document.getElementById('new-floor-name').value.trim() || `楼层 ${State.floors.length + 1}`;
   const floor_number = parseInt(document.getElementById('new-floor-number').value) || 0;
   
-  const id = 'floor-' + Date.now();
+  // 使用简短ID：f + 时间戳后6位，避免UUID太长导致URL问题
+  const id = 'f' + Date.now().toString().slice(-6);
+  console.log('[createNewFloor] creating floor with id:', id);
+  
   const result = await apiPost('/floors', {
     id,
     project_id: State.currentProjectId,
@@ -708,6 +714,7 @@ async function createNewFloor() {
     floor_number,
   });
   
+  console.log('[createNewFloor] API result:', result);
   document.getElementById('modal-new-floor').classList.add('hidden');
   
   if (result && result.code === 0) {
