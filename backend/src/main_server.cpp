@@ -170,6 +170,23 @@ bool sendResponse(SOCKET clientSocket, int statusCode, const std::string& body,
     return sent > 0;
 }
 
+// 发送 CORS 预检响应
+bool sendOptionsResponse(SOCKET clientSocket) {
+    std::ostringstream ss;
+    ss << "HTTP/1.1 200 OK\r\n";
+    ss << "Access-Control-Allow-Origin: *\r\n";
+    ss << "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n";
+    ss << "Access-Control-Allow-Headers: Content-Type, Authorization\r\n";
+    ss << "Access-Control-Max-Age: 86400\r\n";
+    ss << "Content-Length: 0\r\n";
+    ss << "Connection: close\r\n";
+    ss << "\r\n";
+    
+    std::string response = ss.str();
+    int sent = send(clientSocket, response.c_str(), response.size(), 0);
+    return sent > 0;
+}
+
 // 处理客户端请求
 void handleClient(SOCKET clientSocket) {
     try {
@@ -182,6 +199,13 @@ void handleClient(SOCKET clientSocket) {
         }
         
         std::cout << "[REQUEST] " << method << " " << path << std::endl;
+        
+        // 处理 OPTIONS 预检请求
+        if (method == "OPTIONS") {
+            sendOptionsResponse(clientSocket);
+            cleanupSocket(clientSocket);
+            return;
+        }
         
         // 解析查询参数
         std::map<std::string, std::string> queryParams;
